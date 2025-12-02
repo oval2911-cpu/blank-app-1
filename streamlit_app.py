@@ -105,9 +105,9 @@ Do individuals taking antihypertensive medication differ in their cardiovascular
 
 #We want to exclude the following columns (number in brackets is index):
 #CIGPDAY (7), GLUCOSE (12), educ (13), PREV... (14-18), TIME (19), DEATH (23), ANGINA (24), HOSPMI (25), MI_FCHD (26), TIME..(31-38)
-data_heart_subset = data_heart.drop(columns = ['CIGPDAY', 'GLUCOSE', 'educ', 'DEATH', 'ANGINA', 'HOSPMI', 'MI_FCHD'] #drop these columns
-                                    + [col for col in data_heart.columns if col.startswith('PREV')] #drop columns that start with PREV... when iterating over all columns
-                                    + [col for col in data_heart.columns if col.startswith('TIME')]) #drop columns that start with TIME... when iterating over all columns
+data_heart_subset = data_heart.drop(columns = ['educ', 'DEATH', 'ANGINA', 'HOSPMI', 'MI_FCHD'] #drop these columns
+                                    + [col for col in data_heart.columns if col.startswith('PREV')]) #drop columns that start with PREV... when iterating over all columns
+#                                    + [col for col in data_heart.columns if col.startswith('TIME')]) #drop columns that start with TIME... when iterating over all columns
 
 #rename subset to make it easier to call it
 dhs = data_heart_subset
@@ -121,7 +121,7 @@ dhs.columns
 dhs.head(100)
 
 #check the shape of the subset
-data_heart_subset.shape
+dhs.shape
 
 """#Data exploration and cleaning
 
@@ -131,13 +131,15 @@ data_heart_subset.shape
 #plot distributions of dataset
 import matplotlib.pyplot as plt
 
+dhs = dhs.loc[dhs['PERIOD']==1]
+
 fig, ax = plt.subplots(figsize=(15, 10))
 
-for col in dhs.select_dtypes(include='number').columns:
-    ax.hist(dhs[col], bins=30, alpha=0.4, edgecolor='black', label=col)
+selectedVariable = st.selectbox("Select variable to plot:", dhs.select_dtypes(include='number').columns)
+ax.hist(dhs[selectedVariable], bins=30, alpha=0.4, edgecolor='black', label=selectedVariable)
 
 ax.legend()
-fig.suptitle('Distributions of all numeric variables', fontsize=20)
+fig.suptitle(f'Distribution of {selectedVariable} variable', fontsize=20)
 fig.tight_layout()
 
 st.pyplot(fig)
