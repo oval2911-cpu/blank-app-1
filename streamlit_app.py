@@ -11,4 +11,4 @@ import pandas as pd
 data_heart = pd.read_csv('https://raw.githubusercontent.com/LUCE-Blockchain/Databases-for-teaching/refs/heads/main/Framingham%20Dataset.csv')
 
 #see the dataset
-data_heart.head()
+print(data_heart.head())
