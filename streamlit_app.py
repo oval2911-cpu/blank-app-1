@@ -1,5 +1,12 @@
 # -*- coding: utf-8 -*-
+#import libraries
+import pandas as pd
 import streamlit as st
+import matplotlib.pyplot as plt
+import seaborn as sns
+import numpy as np
+import matplotlib.axes
+import matplotlib.figure
 
 """
 st.title("🎈 My new app")
@@ -60,8 +67,75 @@ October 28th, 2025
 ##Load dataset and do some descriptive statistics on the full dataset:
 """
 
-#import libraries
-import pandas as pd
+# function to plot
+
+
+def render_plot(obj, figsize=(12, 8), *args, **kwargs):
+    """
+    Universal Streamlit plot wrapper.
+    
+    Accepts:
+    - Figure objects
+    - Axes objects
+    - Array of Axes (e.g., df.hist())
+    - Callable plotting functions
+    - pandas Series (automatically plotted as histogram)
+    
+    Automatically:
+    - Creates figure if needed
+    - Applies layout fixes
+    - Displays the figure in Streamlit
+    """
+    
+    # ----------------------------
+    # CASE 0 — pandas Series
+    # ----------------------------
+    if isinstance(obj, pd.Series):
+        fig = obj.plot(kind='hist', figsize=figsize, **kwargs).get_figure()
+    
+    # ----------------------------
+    # CASE 1 — Callable
+    # ----------------------------
+    elif callable(obj):
+        fig = plt.figure(figsize=figsize, constrained_layout=True)
+        obj(*args, **kwargs)
+    
+    # ----------------------------
+    # CASE 2 — Figure
+    # ----------------------------
+    elif isinstance(obj, matplotlib.figure.Figure):
+        fig = obj
+    
+    # ----------------------------
+    # CASE 3 — Single Axes
+    # ----------------------------
+    elif isinstance(obj, matplotlib.axes.Axes):
+        fig = obj.get_figure()
+    
+    # ----------------------------
+    # CASE 4 — Array of Axes (e.g., df.hist())
+    # ----------------------------
+    elif isinstance(obj, (np.ndarray, list)) and all(isinstance(a, matplotlib.axes.Axes) for a in np.ravel(obj)):
+        axes = np.ravel(obj)
+        fig = axes[0].get_figure()
+    
+    else:
+        raise TypeError(f"render_plot received an unsupported type: {type(obj)}")
+    
+    # ----------------------------
+    # Layout adjustments
+    # ----------------------------
+    fig.tight_layout(pad=2.0)
+    fig.subplots_adjust(top=0.9)
+    for ax in fig.axes:
+        ax.tick_params(axis='x', rotation=30)
+    
+    # ----------------------------
+    # Display in Streamlit
+    # ----------------------------
+    st.pyplot(fig)
+    
+    return fig
 
 #load dataset
 data_heart = pd.read_csv('https://raw.githubusercontent.com/LUCE-Blockchain/Databases-for-teaching/refs/heads/main/Framingham%20Dataset.csv')
@@ -75,20 +149,20 @@ data_heart
 """
 
 #see shape (n of rows and columns) of the dataset
-data_heart.shape
+st.write(data_heart.shape)
 
 #descriptive statistics on full dataset
-data_heart.describe()
+st.write(data_heart.describe())
 
 #look at all column names
-data_heart.columns
+st.write(data_heart.columns)
 
 #summarize information on missing values per feature
-data_heart.isna().sum()
+st.write(data_heart.isna().sum())
 
 """--> Missing values have to be handled (after we select the subset we will work on)"""
 
-data_heart.duplicated().sum()
+st.write(data_heart.duplicated().sum())
 
 """--> No duplicates to handle
 
@@ -105,23 +179,23 @@ Do individuals taking antihypertensive medication differ in their cardiovascular
 
 #We want to exclude the following columns (number in brackets is index):
 #CIGPDAY (7), GLUCOSE (12), educ (13), PREV... (14-18), TIME (19), DEATH (23), ANGINA (24), HOSPMI (25), MI_FCHD (26), TIME..(31-38)
-data_heart_subset = data_heart.drop(columns = ['educ', 'DEATH', 'ANGINA', 'HOSPMI', 'MI_FCHD'] #drop these columns
-                                    + [col for col in data_heart.columns if col.startswith('PREV')]) #drop columns that start with PREV... when iterating over all columns
+data_heart_subset = data_heart.drop(columns = ['educ', 'DEATH', 'ANGINA', 'HOSPMI', 'MI_FCHD', 'HDLC', 'LDLC']) #drop these columns hdlc, ldlc only in period3 available, thus inappropriate to calculate risk
+#                                    + [col for col in data_heart.columns if col.startswith('PREV')]) #drop columns that start with PREV... when iterating over all columns
 #                                    + [col for col in data_heart.columns if col.startswith('TIME')]) #drop columns that start with TIME... when iterating over all columns
 
 #rename subset to make it easier to call it
 dhs = data_heart_subset
 
 #check all columns of the created subset
-dhs.columns
+st.write(dhs.columns)
 
 """--> it is correct"""
 
 #see the subset
-dhs.head(100)
+st.write(dhs.head(100))
 
 #check the shape of the subset
-dhs.shape
+st.write(dhs.shape)
 
 """#Data exploration and cleaning
 
@@ -129,21 +203,32 @@ dhs.shape
 """
 
 #plot distributions of dataset
-import matplotlib.pyplot as plt
+# Compute targetDisease from follow-up periods (2 and 3) using full dataset
+target = dhs.loc[dhs['PERIOD'].isin([2,3])].groupby('RANDID')[['ANYCHD','STROKE']].max()
 
-dhs = dhs.loc[dhs['PERIOD']==1]
+# Create binary target
+target['targetDisease'] = ((target['ANYCHD']==1) | (target['STROKE']==1)).astype(int)
 
-fig, ax = plt.subplots(figsize=(15, 10))
+
+# Remove patients with events at baseline (period 1)
+randid_to_remove = dhs.loc[
+    (dhs['PERIOD'] == 1) & ((dhs['PREVCHD']==1) | (dhs['PREVSTRK']==1)),
+    'RANDID'
+].unique()
+
+dhsAll_clean = dhs[~dhs['RANDID'].isin(randid_to_remove)]
+
+# Keep only baseline period (period 1) for features
+dhs = dhsAll_clean.loc[dhsAll_clean['PERIOD'] == 1].copy()
+
+# Merge targetDisease into baseline dataset
+dhs = dhs.merge(target['targetDisease'], on='RANDID', how='left').fillna({'targetDisease':0})
+
 
 selectedVariable = st.selectbox("Select variable to plot:", dhs.select_dtypes(include='number').columns)
-ax.hist(dhs[selectedVariable], bins=30, alpha=0.4, edgecolor='black', label=selectedVariable)
+render_plot(dhs[selectedVariable].hist, bins=30, alpha=0.4, edgecolor='black', label=selectedVariable)
 
-ax.legend()
-fig.suptitle(f'Distribution of {selectedVariable} variable', fontsize=20)
-fig.tight_layout()
-
-st.pyplot(fig)
-
+# Impute only Period 1, to prevent data leakage
 
 """--> SYSBP, heartrate seem to be right skwewed.
 
@@ -157,12 +242,11 @@ st.pyplot(fig)
 """
 
 #plot distributions of variables that are relevant to describe population characteristics at baseline
-import matplotlib.pyplot as plt
 
-dhs.loc[dhs['PERIOD']==1].hist(figsize=(15, 10), bins=30, edgecolor='black')
-plt.suptitle('Distributions of all numeric variables (continuous and encoded categorical for patients at baseline (period 1))', fontsize=20)
-plt.tight_layout()
-plt.show()
+render_plot(dhs.loc[dhs['PERIOD']==1].hist(figsize=(15, 10), bins=30, edgecolor='black'))
+#plt.suptitle('Distributions of all numeric variables (continuous and encoded categorical for patients at baseline (period 1))', fontsize=20)
+#plt.tight_layout()
+#plt.show()
 
 #show descriptive statistics for unique patients at baseline
 
@@ -178,27 +262,27 @@ numerical = ['TOTCHOL', 'AGE', 'SYSBP', 'DIABP', 'BMI', 'HEARTRTE', 'HDLC', 'LDL
 num_df = dhs[numerical]
 cat_df = dhs[categorical]
 
-import seaborn as sns
-
 #plot boxplots for numerical data to see outliers and dstributions
-sns.boxplot(data=dhs[numerical], orient='h')
-plt.show()
+#sns.boxplot(data=dhs[numerical], orient='h')
+#plt.show()
+render_plot(sns.boxplot, data=dhs[numerical], orient='h')
 
 """--> most of the outliers are on the right hand side due to skewness"""
 
 #check for ranges of the heart rate and LCDC
-print("Highest heart rate:", dhs['HEARTRTE'].max())
-print("Lowest heart rate:", dhs['HEARTRTE'].min())
+st.write(dhs.describe())
+st.write("Highest heart rate:", dhs['HEARTRTE'].max())
+st.write("Lowest heart rate:", dhs['HEARTRTE'].min())
 
-print("Highest LDLC:", dhs['LDLC'].max())
-print("Lowest LDLC:", dhs['LDLC'].min())
+st.write("Highest LDLC:", dhs['LDLC'].max())
+st.write("Lowest LDLC:", dhs['LDLC'].min())
 
 """--> 1 heartrate is 220 but stiiiilll technically possible. In 12k data can keep."""
 
 #check for heartrate: how many values are below the "low" value of 60 and higher than "high" values of 120
 low = (dhs['HEARTRTE'] < 60).sum()
 high = (dhs['HEARTRTE'] > 120).sum()
-print("Low (<40):", low, "High (>180):", high)
+st.write("Low (<40):", low, "High (>180):", high)
 
 #check if there are many values outside whiskers (1.5*IQR) - outlier detection
 Q1 = num_df.quantile(0.25)
@@ -206,27 +290,27 @@ Q3 = num_df.quantile(0.75)
 IQR = Q3 - Q1
 outlier_mask = (num_df < (Q1 - 1.5 * IQR)) | (num_df > (Q3 + 1.5 * IQR))
 outlier_counts = outlier_mask.sum().sort_values(ascending=False)
-print(outlier_counts)
+st.write(outlier_counts)
 
 #check if there are many values above z score of 3 (another way of detecting outliers)
 from scipy.stats import zscore
 z_scores = num_df.apply(zscore)
 outliers_z = (abs(z_scores) > 3).sum().sort_values(ascending=False)
-print(outliers_z)
+st.write(outliers_z)
 
 #How much influence do these outliers have on mean and std when being included or disregarded?
 
 #without outliers
 clean_df = num_df[~outlier_mask.any(axis=1)]
 
-#print mean and std for with outliers vs without outliers and put in pd dataframe
+#st.write mean and std for with outliers vs without outliers and put in pd dataframe
 compare = pd.DataFrame({
     'Mean (all)': num_df.mean(),
     'Mean (no outliers)': clean_df.mean(),
     'Std (all)': num_df.std(),
     'Std (no outliers)': clean_df.std()
 })
-print(compare.round(2))
+st.write(compare.round(2))
 
 """TOTCHOL has some influence of outliers. Are they maybe correlated with the group eg SEX? Then these outliers may be valid still."""
 
@@ -275,7 +359,7 @@ plt.show()
 
 """--> Looks reasonable normally distributed.
 
---> TOTCHOL will be printed later again to show distribution before and after imputation.
+--> TOTCHOL will be st.writeed later again to show distribution before and after imputation.
 
 ##Missing data handling
 """
@@ -290,7 +374,7 @@ total_rows = len(dhs)
 missing_counts = dhs[['HDLC', 'LDLC', 'TOTCHOL', 'BPMEDS', 'BMI', 'HEARTRTE']].isna().sum()
 
 for col in ['HDLC', 'LDLC', 'TOTCHOL', 'BPMEDS', 'BMI', 'HEARTRTE']:
-    print(col, ":", missing_counts[col], "missing out of", total_rows,
+    st.write(col, ":", missing_counts[col], "missing out of", total_rows,
           "(", round(missing_counts[col] / total_rows * 100, 2), "% )")
 
 import matplotlib.pyplot as plt
@@ -324,15 +408,15 @@ dhs['TOTCHOL_missing'] = dhs['TOTCHOL'].isna().astype(int)
 numeric_vars = ['AGE', 'SYSBP', 'DIABP', 'BMI', 'HEARTRTE']
 # concatenation of numeric vars and the flag
 corrs = dhs[numeric_vars + ['TOTCHOL_missing']].corr()['TOTCHOL_missing'].sort_values(ascending=False)
-print(corrs)
+st.write(corrs)
 
 categorical_vars = ['SEX', 'CURSMOKE', 'DIABETES', 'BPMEDS',
                     'PERIOD', 'ANYCHD', 'STROKE', 'CVD', 'HYPERTEN']
 
 for col in categorical_vars:
     rates = dhs.groupby(col)['TOTCHOL_missing'].mean() * 100
-    print("\nMissingness rate by", col, ":")
-    print(rates.round(2))
+    st.write("\nMissingness rate by", col, ":")
+    st.write(rates.round(2))
 
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -374,7 +458,7 @@ plt.show()
 """--> Some variables show slight variation in missingness between groups (for example diabetes vs non diabetes, or the different periods where later periods show higher missingness.) This essentially means the missingness for these variables is MAR and should not simply be imputed using mean but rather model-based imputation."""
 
 corr_totchol = dhs.corr(numeric_only=True)['TOTCHOL'].sort_values(ascending=False)
-print(corr_totchol)
+st.write(corr_totchol)
 
 """--> From that we have to choose proper predictors.
 
@@ -396,7 +480,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 
 # statistics summary
-print(dhs_unimputed['TOTCHOL'].describe().round(2))
+st.write(dhs_unimputed['TOTCHOL'].describe().round(2))
 
 plt.figure(figsize=(8,5))
 sns.histplot(dhs_unimputed['TOTCHOL'], bins=30, kde=True, color='teal', alpha=0.6)
@@ -430,7 +514,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 
 # statistics summary
-print(dhs['TOTCHOL'].describe().round(2))
+st.write(dhs['TOTCHOL'].describe().round(2))
 
 plt.figure(figsize=(8,5))
 sns.histplot(dhs['TOTCHOL'], bins=30, kde=True, color='teal', alpha=0.6)
@@ -454,7 +538,7 @@ import matplotlib.pyplot as plt
 cols = ['BMI', 'HEARTRTE']
 
 for col in cols:
-    print(dhs[col].describe().round(2))
+    st.write(dhs[col].describe().round(2))
 
     plt.figure(figsize=(8,5))
     sns.histplot(dhs[col], bins=30, kde=True, color='teal', alpha=0.6)
@@ -479,7 +563,7 @@ import matplotlib.pyplot as plt
 cols = ['BMI', 'HEARTRTE']
 
 for col in cols:
-    print(dhs[col].describe().round(2))
+    st.write(dhs[col].describe().round(2))
 
     plt.figure(figsize=(8,5))
     sns.histplot(dhs[col], bins=30, kde=True, color='orange', alpha=0.6)
@@ -539,13 +623,13 @@ exceptions = bp[ever_on_meds & bp.apply(breaks_rule, axis=1)]
 total_ever_on = ever_on_meds.sum()
 n_exceptions = len(exceptions)
 
-print("Total patients who ever had BPMEDS = 1:", total_ever_on)
-print("Total patients who never took BPMEDS = 1:", ever_not_on_meds.sum())
-print("Patients who later had a 0 (stopped medication):", n_exceptions)
-print(round(100 * n_exceptions / total_ever_on, 1), "% of ever-med patients later had a 0.\n")
+st.write("Total patients who ever had BPMEDS = 1:", total_ever_on)
+st.write("Total patients who never took BPMEDS = 1:", ever_not_on_meds.sum())
+st.write("Patients who later had a 0 (stopped medication):", n_exceptions)
+st.write(round(100 * n_exceptions / total_ever_on, 1), "% of ever-med patients later had a 0.\n")
 
-print("Example patients who broke the rule (first 10):")
-print(exceptions.head(10))
+st.write("Example patients who broke the rule (first 10):")
+st.write(exceptions.head(10))
 
 """Actually, we can impute more:
 Rule	Pattern across periods [p1, p2, p3]	When to apply	Impute
@@ -579,13 +663,13 @@ maskB = (bp['p2'].isna()) & (bp['p3'] == 0)
 # Rule A: p1 is nan and p2 = 0
 maskA = bp['p1'].isna() & (bp['p2'] == 0)
 
-# printing some stats
-print("Theoretical imputations possible:")
-print("Rule D (p1=1 -> p2=1):", maskD.sum())
-print("Rule C (p2=1 -> p3=1):", maskC.sum())
-print("Rule B ([? ,nan,0] -> p2=0):", maskB.sum())
-print("Rule A ([nan,0, ?] -> p1=0):", maskA.sum())
-print("Total unique imputations possible:", (maskA | maskB | maskC | maskD).sum())
+# st.writeing some stats
+st.write("Theoretical imputations possible:")
+st.write("Rule D (p1=1 -> p2=1):", maskD.sum())
+st.write("Rule C (p2=1 -> p3=1):", maskC.sum())
+st.write("Rule B ([? ,nan,0] -> p2=0):", maskB.sum())
+st.write("Rule A ([nan,0, ?] -> p1=0):", maskA.sum())
+st.write("Total unique imputations possible:", (maskA | maskB | maskC | maskD).sum())
 
 # set the values of the periods to 1 or 0 according to the masks
 bp.loc[maskD, 'p2'] = 1
@@ -608,32 +692,32 @@ dhs_imputed = (
        .merge(bp_long, on=['RANDID', 'PERIOD'], how='left')
 )
 
-# output printing
-print("\nImputation applied successfully.")
-print("Remaining missing BPMEDS values:", dhs_imputed['BPMEDS'].isna().sum())
-print("Example of imputed BPMEDS values:")
-print(dhs_imputed[['RANDID', 'PERIOD', 'BPMEDS']].head(10))
+# output st.writeing
+st.write("\nImputation applied successfully.")
+st.write("Remaining missing BPMEDS values:", dhs_imputed['BPMEDS'].isna().sum())
+st.write("Example of imputed BPMEDS values:")
+st.write(dhs_imputed[['RANDID', 'PERIOD', 'BPMEDS']].head(10))
 
 dhs_imputed.isna().sum()
 
 # find missing rows after imputation
 missing_bpmeds = dhs_imputed[dhs_imputed['BPMEDS'].isna()]
 
-print("Still missing BPMEDS values:", len(missing_bpmeds), "rows (",
+st.write("Still missing BPMEDS values:", len(missing_bpmeds), "rows (",
       missing_bpmeds['RANDID'].nunique(), "unique patients )\n")
 
-print("Example RANDIDs and periods still missing:")
-print(missing_bpmeds[['RANDID', 'PERIOD']].head(20))
+st.write("Example RANDIDs and periods still missing:")
+st.write(missing_bpmeds[['RANDID', 'PERIOD']].head(20))
 
-# pivot again to print timeline for debugging
+# pivot again to st.write timeline for debugging
 bp_missing = (
     dhs_imputed[dhs_imputed['RANDID'].isin(missing_bpmeds['RANDID'])]
     .pivot_table(index='RANDID', columns='PERIOD', values='BPMEDS', aggfunc='first')
     .rename(columns={1:'p1', 2:'p2', 3:'p3'})
 )
 
-print("\nExample patients with remaining missing BPMEDS after imputation:")
-print(bp_missing.to_string())
+st.write("\nExample patients with remaining missing BPMEDS after imputation:")
+st.write(bp_missing.to_string())
 
 """Drop the remaining whole patients!"""
 
@@ -642,7 +726,7 @@ dhs_imputed = dhs_imputed[~dhs_imputed['RANDID'].isin(bp_missing.index)].copy()
 dhs_imputed.isna().sum()
 
 still_missing = dhs_imputed[dhs_imputed['BPMEDS'].isna()]
-print(still_missing[['RANDID', 'PERIOD']].to_string(index=False))
+st.write(still_missing[['RANDID', 'PERIOD']].to_string(index=False))
 
 dhs_imputed = dhs_imputed[~dhs_imputed['RANDID'].isin(dhs_imputed.loc[dhs_imputed['BPMEDS'].isna(), 'RANDID'])]
 
@@ -681,7 +765,7 @@ modifiable = ['CURSMOKE','BMI','SYSBP','DIABP','TOTCHOL','HEARTRTE','DIABETES']
 group_means = df_patients.groupby('ever_CVD')[modifiable].mean().T
 group_means.columns = ['No CVD', 'Ever CVD']
 group_means['Difference'] = group_means['Ever CVD'] - group_means['No CVD']
-print(group_means.sort_values('Difference', ascending=False))
+st.write(group_means.sort_values('Difference', ascending=False))
 
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -713,9 +797,9 @@ plt.title('Mean Systolic BP over Time by CVD Status')
 plt.ylabel('Mean SYSBP')
 plt.show()
 
-print("Unique patients with CVD = 1:", dhs_imputed.loc[dhs_imputed['CVD'] == 1, 'RANDID'].nunique())
+st.write("Unique patients with CVD = 1:", dhs_imputed.loc[dhs_imputed['CVD'] == 1, 'RANDID'].nunique())
 
-print("Unique patients without CVD = 0:", dhs_imputed.loc[dhs_imputed['CVD'] == 0, 'RANDID'].nunique())
+st.write("Unique patients without CVD = 0:", dhs_imputed.loc[dhs_imputed['CVD'] == 0, 'RANDID'].nunique())
 
 """## RQ 1: Among participants at baseline, how do demographics and clinical characteristics differ between those who eventually took antihypertensive medication at any of the three follow-ups and those who did not?
 
@@ -749,7 +833,7 @@ categorical_vars = ['SEX', 'CURSMOKE', 'DIABETES', 'BPMEDS',
 
 #summarize for continuous variables
 
-print("Continuous Variables by Ever Use of Antihypertensive Medication")
+st.write("Continuous Variables by Ever Use of Antihypertensive Medication")
 
 cont_summary_dict = {}
 
@@ -761,8 +845,8 @@ for var in continuous_vars:
     summary.index = ['Never Used Meds', 'Ever Used Meds']
     cont_summary_dict[var] = summary
 
-    print(f"\n{var} by Ever Use of Antihypertensive Medication:\n")
-    print(summary.style.set_caption(f"{var}")
+    st.write(f"\n{var} by Ever Use of Antihypertensive Medication:\n")
+    st.write(summary.style.set_caption(f"{var}")
         .set_table_styles([
             {'selector': 'caption',
              'props': [('font-size', '15px'),
@@ -775,7 +859,7 @@ for var in continuous_vars:
 
 #summarize for categorical variables
 
-print("\nCategorical Variables by Ever Use of Antihypertensive Medication")
+st.write("\nCategorical Variables by Ever Use of Antihypertensive Medication")
 
 cat_tables = {}
 for var in categorical_vars:
@@ -787,8 +871,8 @@ for var in categorical_vars:
     combined.index = ['Never Used Meds', 'Ever Used Meds']
     cat_tables[var] = combined
 
-    print(f"\n{var} by Ever Use of Antihypertensive Medication:\n")
-    print(combined.style.set_caption(f"{var}: Counts (Percentages)")
+    st.write(f"\n{var} by Ever Use of Antihypertensive Medication:\n")
+    st.write(combined.style.set_caption(f"{var}: Counts (Percentages)")
         .set_table_styles([
             {'selector': 'caption',
              'props': [('font-size', '14px'),
@@ -804,7 +888,7 @@ import pandas as pd
 colors = {0: "skyblue", 1: "salmon"}
 
 #continuous variables sistributions
-print("Distributions of Continuous Variables by Ever Use of Antihypertensive Medication")
+st.write("Distributions of Continuous Variables by Ever Use of Antihypertensive Medication")
 
 for var in continuous_vars:
     fig, ax = plt.subplots(figsize=(6, 5))
@@ -838,7 +922,7 @@ for var in continuous_vars:
 
 
 #show bar plots for categorical variables
-print("Categorical Variable Distributions by Ever Use of Antihypertensive Medication")
+st.write("Categorical Variable Distributions by Ever Use of Antihypertensive Medication")
 
 for var in categorical_vars:
     fig, ax = plt.subplots(figsize=(6, 5))
@@ -916,8 +1000,8 @@ def event_summary(df, event):
 
 #show summaries
 for event in events:
-    print(f"\nOccurrence of {event} by hypertension and medication status")
-    print(event_summary(dhs_RQb_summary, event))
+    st.write(f"\nOccurrence of {event} by hypertension and medication status")
+    st.write(event_summary(dhs_RQb_summary, event))
 
 import matplotlib.pyplot as plt
 
