@@ -251,14 +251,45 @@ dhs['educ'] = dhs['educ'].fillna(mode_value)
 median_cigpday = dhs['CIGPDAY'].median()
 dhs['CIGPDAY'] = dhs['CIGPDAY'].fillna(median_cigpday)
 
-"""Mean Impute BMI, since missing value is very low and distribution looks normal enough"""
+"""Mean Impute BMI and Heartrate, since missing value is very low and distribution looks normal enough"""
 mean_bmi = dhs['BMI'].mean()
 dhs['BMI'] = dhs['BMI'].fillna(mean_bmi)
+mean_heartrate = dhs['HEARTRTE'].mean()
+dhs['HEARTRTE'] = dhs['HEARTRTE'].fillna(mean_heartrate)
 
 
-#MICE Imputation for remaining numerical variables as they are correlated and higher percentage missing
+#MICE Imputation for TOTCHOl / GLUCOSE as they are correlated and higher percentage missing
 
-#dhs_imputed.isna().sum()
+
+# 1. Define the set of columns for the MICE model:
+# Both Imputation Targets (TOTCHOL, GLUCOSE) and all Predictors
+mice_cols = [
+    'TOTCHOL', 'GLUCOSE', 'AGE', 'SEX', 'SYSBP', 'DIABP', 'BMI',
+    'HYPERTEN', 'educ', 'CIGPDAY', 'HEARTRTE'
+]
+# We only include CVD/ANYCHD if they were already cleaned or have no NaNs
+# For a clean MICE run, we stick to the core risk factors above.
+
+# Create the temporary DataFrame X, preserving the original index
+X = dhs[mice_cols].copy() 
+
+# 2. Initialize and run MICE (Iterative Imputer)
+# max_iter=10 and random_state=42 for reproducibility
+imp = IterativeImputer(max_iter=10, random_state=42)
+X_imputed_array = imp.fit_transform(X)
+
+# 3. CORRECTED STEP: Convert back to DataFrame using the original index
+X_imputed = pd.DataFrame(
+    X_imputed_array, 
+    index=X.index,
+    columns=mice_cols
+)
+
+# 4. Update the original DataFrame (dhs) for both imputed columns
+dhs['TOTCHOL'] = X_imputed['TOTCHOL']
+dhs['GLUCOSE'] = X_imputed['GLUCOSE']
+
+st.write(dhs.isna().sum())
 
 #dhs_imputed.to_csv('dhs_imputed_clean.csv', index=False)
 
