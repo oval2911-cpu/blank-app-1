@@ -184,6 +184,7 @@ dhs['SEX_Female'] = dhs['SEX'].replace({
     2: 1  # Map original value 2 (Female) to 1
 })
 
+
 # Drop the original column
 dhs = dhs.drop('SEX', axis=1)
 
@@ -390,16 +391,26 @@ selectedVariable = st.selectbox("Select variable to plot:", X_train.select_dtype
 # 2. Plot the histogram using the training data for the selected variable
 render_plot(X_train[selectedVariable].hist, bins=30, alpha=0.4, edgecolor='black', label=selectedVariable)
 
+st.write(X_train.describe())
 
-# # Assuming your target column is 'targetDisease'
-# # Print the size and outcome distribution of the training set
+# Print the size and outcome distribution of the training set
 
-# print(f"Total Training Samples: {X_train.shape[0]}")
-# outcome_distribution = y_train.value_counts(normalize=True) * 100
-# print("\nTarget Disease Distribution (y_train):")
-# print(outcome_distribution.round(2))
+st.write(f"Total Training Samples: {X_train.shape[0]}")
+outcome_distribution = y_train.value_counts(normalize=True) * 100
+st.write("\nTarget Disease Distribution (y_train):")
+st.write(outcome_distribution.round(2))
 
-# # Use a visualization (example using Streamlit/render_plot)
-# render_plot(y_train.value_counts().plot, kind='pie', autopct='%1.1f%%', 
-#             title='Target Disease Distribution (y_train)')
+st.subheader("Categorical Feature Distributions")
+
+# Use a visualization (example using Streamlit/render_plot)
+render_plot(y_train.value_counts().plot, kind='pie', autopct='%1.1f%%', 
+            title='Target Disease Distribution (y_train)')
+
+# 2. Gender Distribution (Bar Chart)
+st.markdown("##### SEX_Female Counts (0=Male, 1=Female)")
+render_plot(X_train['SEX_Female'].value_counts().plot, 
+            kind='bar', 
+            alpha=0.8, 
+            edgecolor='black')
 ##############################################################################
+
