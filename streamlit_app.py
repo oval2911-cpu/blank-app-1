@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #import libraries
 import pandas as pd
 import streamlit as st
@@ -14,14 +13,37 @@ from sklearn.model_selection import train_test_split
 from scipy.stats import skew
 from sklearn.preprocessing import StandardScaler
 
-"""
-st.title("My new app")
-st.write(
-    "I now changed somethign"
-)"""
 
 
-def render_plot(obj, figsize=(12, 8), *args, **kwargs):
+st.markdown("*Streamlit* is **really** ***cool***.")
+st.markdown('''
+    :red[Streamlit] :orange[can] :green[write] :blue[text] :violet[in]
+    :gray[pretty] :rainbow[colors] and :blue-background[highlight] text.''')
+
+multi = '''If you end a line with two spaces,
+a soft return is used for the next line.
+
+st.markdown("This is black and :red[this is red!]")
+
+Two (or more) newline characters in a row will result in a hard return.
+'''
+st.markdown(multi)
+
+
+
+
+
+
+st.title("Prediction of the cardiovascular events using the baseline patient characteristics from the Framingham dataset")
+
+st.markdown("*Tom Einhaus: i6339207, Alisa Ovsiannikova: i6365923*")
+st.markdown("*MAI3002: Introduction to Programming*")
+st.markdown("*Faculty of Health, Medicine, and Life Sciences*")
+st.markdown("*Maastricht University*")
+st.markdown("***December 16th, 2025***")
+
+
+def render_plot(obj, title="", *args, **kwargs):
     """
     Universal Streamlit plot wrapper.
     
@@ -37,7 +59,7 @@ def render_plot(obj, figsize=(12, 8), *args, **kwargs):
     - Applies layout fixes
     - Displays the figure in Streamlit
     """
-    
+    figsize=(12, 8)
     # ----------------------------
     # CASE 0 — pandas Series
     # ----------------------------
@@ -78,6 +100,9 @@ def render_plot(obj, figsize=(12, 8), *args, **kwargs):
     # ----------------------------
     fig.tight_layout(pad=2.0)
     fig.subplots_adjust(top=0.9)
+    fig.suptitle(title, fontsize=30)
+    plt.yticks(fontsize=20)
+    plt.xticks(fontsize=20)
     for ax in fig.axes:
         ax.tick_params(axis='x', rotation=30)
     
@@ -117,7 +142,7 @@ st.write(data_heart.duplicated().sum())
 
 """--> No duplicates to handle
 
-##Identify main research question:
+Identify main research question:
 **Main RQ & subquestions:**
 How accurately can a machine-learning model predict the occurrence of cardiovascular events (stroke, CHD, MI, or coronary insufficiency) using baseline patient characteristics from the Framingham dataset?
 ##Select rows and columns relevant to the research question:
@@ -125,7 +150,7 @@ How accurately can a machine-learning model predict the occurrence of cardiovasc
 
 #We want to exclude the following columns (number in brackets is index):
 # ANGINA (24), HOSPMI (25), MI_FCHD (26), TIME..(31-38)
-data_heart_subset = data_heart.drop(columns = ['ANGINA', 'HOSPMI', 'MI_FCHD', 'CVD', 'PREVAP', 'PREVMI', 'PREVHYP', 'TIMECVD', 'TIMEMIFC', 'TIMEMI', 'TIMEAP', 'HDLC', 'LDLC', 'BPMEDS']) #drop these columns hdlc, ldlc only in period3 available, thus inappropriate to calculate risk
+data_heart_subset = data_heart.drop(columns = ['ANGINA', 'HOSPMI', 'MI_FCHD', 'CVD', 'PREVAP', 'PREVMI', 'TIMECVD', 'TIMEMIFC', 'TIMEMI', 'TIMEAP', 'HDLC', 'LDLC', 'BPMEDS']) #drop these columns hdlc, ldlc only in period3 available, thus inappropriate to calculate risk
 #                                    + [col for col in data_heart.columns if col.startswith('PREV')]) #drop columns that start with PREV... when iterating over all columns
 #                                    + [col for col in data_heart.columns if col.startswith('TIME')]) #drop columns that start with TIME... when iterating over all columns
 
@@ -160,19 +185,20 @@ dhs['targetDisease'] = (
 
 """Data exploration (distributions and descriptive statistics)"""
 selectedVariable = st.selectbox("Select variable to plot:", dhs.select_dtypes(include='number').columns)
+
 render_plot(dhs[selectedVariable].hist, bins=30, alpha=0.4, edgecolor='black', label=selectedVariable)
 
 
 """plot distributions of variables that are relevant to describe population characteristics at baseline"""
 
-render_plot(dhs.loc[dhs['PERIOD']==1].hist(figsize=(15, 10), bins=30, edgecolor='black'))
+render_plot(dhs.hist(figsize=(15, 10), bins=30, edgecolor='black'))
 
 
-"""--> SYSBP, TOTCHOL, BMI, HEARTRTE, GLUCOSE, HEARTRTE seem to be right skwewed.
+"""--> SYSBP, TOTCHOL, BMI, HEARTRTE, GLUCOSE seem to be right skwewed.
 
---> Other look normalfor what they are
+--> Other look normal for what they are
 
---> Sex was encoded with 1 and 2
+--> Sex was encoded with 1 and 2 - keep in mind
 
 --> Age has some dips?
 """
@@ -185,8 +211,25 @@ dhs['SEX_Female'] = dhs['SEX'].replace({
 })
 
 
-# Drop the original column
+# Drop the patients that never developed chd or stroke and that died during the follow-up because if they died we cannot say that they would have not developed a disease
+dhs = dhs.loc[~((dhs['targetDisease'] == 0) & (dhs['DEATH'] == 1))]
+
+
+# Drop the original sex column, original target columns, and other columns that are not needed
 dhs = dhs.drop('SEX', axis=1)
+dhs = dhs.drop('ANYCHD', axis=1)
+dhs = dhs.drop('STROKE', axis=1)
+dhs = dhs.drop('PREVCHD', axis=1)
+dhs = dhs.drop('PREVSTRK', axis=1)
+dhs = dhs.drop('TIME', axis=1)
+dhs = dhs.drop('PERIOD', axis=1)
+dhs = dhs.drop('HYPERTEN', axis=1)
+dhs = dhs.drop('TIMEHYP', axis=1)
+dhs = dhs.drop('DEATH', axis=1)
+dhs = dhs.drop('TIMECHD', axis=1)
+dhs = dhs.drop('TIMESTRK', axis=1)
+dhs = dhs.drop('TIMEDTH', axis=1)
+
 
 """##Outlier detection and handling, Impute only Period 1, and only training set to prevent data leakage"""
 
@@ -201,10 +244,9 @@ X_train, X_test, y_train, y_test = train_test_split(
 )
 
 #allocate all categorical and numerical variables to corresponding separate variables
-categorical = ['SEX_Female', 'CURSMOKE', 'DIABETES',
-                    'ANYCHD', 'STROKE', 'HYPERTEN', 'PERIOD', 'educ']
+categorical = ['SEX_Female', 'CURSMOKE', 'DIABETES', 'educ']
 
-numerical = ['TOTCHOL', 'SYSBP', 'DIABP', 'BMI', 'HEARTRTE', 'CIGPDAY', 'GLUCOSE']
+numerical = ['TOTCHOL', 'SYSBP', 'DIABP', 'BMI', 'HEARTRTE', 'CIGPDAY', 'GLUCOSE', 'AGE']
 
 #create 2 dataframes with different types of variables
 num_df = X_train[numerical]
@@ -230,14 +272,14 @@ median_cigpday = X_train['CIGPDAY'].median()
 X_train['CIGPDAY'] = X_train['CIGPDAY'].fillna(median_cigpday)
 X_test['CIGPDAY'] = X_test['CIGPDAY'].fillna(median_cigpday)
 
-"""Mean Impute BMI and Heartrate, since missing value is very low and distribution looks normal enough"""
-mean_bmi = X_train['BMI'].mean()
-X_train['BMI'] = X_train['BMI'].fillna(mean_bmi)
-X_test['BMI'] = X_test['BMI'].fillna(mean_bmi)
+"""Median Impute BMI and Heartrate, to be more robust against outliers"""
+median_bmi = X_train['BMI'].median()
+X_train['BMI'] = X_train['BMI'].fillna(median_bmi)
+X_test['BMI'] = X_test['BMI'].fillna(median_bmi)
 
-mean_heartrate = X_train['HEARTRTE'].mean()
-X_train['HEARTRTE'] = X_train['HEARTRTE'].fillna(mean_heartrate)
-X_test['HEARTRTE'] = X_test['HEARTRTE'].fillna(mean_heartrate)
+median_heartrate = X_train['HEARTRTE'].median()
+X_train['HEARTRTE'] = X_train['HEARTRTE'].fillna(median_heartrate)
+X_test['HEARTRTE'] = X_test['HEARTRTE'].fillna(median_heartrate)
 
 """check if there are many values outside whiskers (1.5*IQR) - outlier detection"""
 Q1 = num_df.quantile(0.25)
@@ -287,13 +329,14 @@ st.write("Lowest TOTCHOL:", X_train['TOTCHOL'].min())
 X_train['TOTCHOL'] = X_train['TOTCHOL'].clip(lower=70.0, upper=450.0)
 
 #MICE Imputation for TOTCHOl / GLUCOSE as they are correlated and higher percentage missing
+# (doing after outlier and other missing values imputation bc totchol/glucose imputation depends on them)
 
-# --- PART A: FIT and TRANSFORM X_TRAIN ---
+# PART A: FIT and TRANSFORM X_TRAIN 
 # 1. Define the set of columns for the MICE model:
 # Both Imputation Targets (TOTCHOL, GLUCOSE) and all Predictors
 mice_cols = [
     'TOTCHOL', 'GLUCOSE', 'AGE', 'SEX_Female', 'SYSBP', 'DIABP', 'BMI',
-    'HYPERTEN', 'educ', 'CIGPDAY', 'HEARTRTE'
+    'educ', 'CIGPDAY', 'HEARTRTE'
 ]
 
 # Create the temporary DataFrame X_train_temp, preserving the original index
@@ -317,7 +360,7 @@ X_train['GLUCOSE'] = X_imputed_train['GLUCOSE']
 
 print("X_train successfully imputed.")
 
-# --- PART B: TRANSFORM X_TEST (LEAKAGE-FREE) ---
+# PART B: TRANSFORM X_TEST (LEAKAGE-FREE)
 
 # 1. Create the temporary DataFrame X_test_temp
 X_test_temp = X_test[mice_cols].copy() 
@@ -338,8 +381,6 @@ X_test['GLUCOSE'] = X_imputed_test['GLUCOSE']
 
 st.write(X_train.isna().sum())
 st.write(X_test.isna().sum())
-
-#dhs_imputed.to_csv('dhs_imputed_clean.csv', index=False)
 
 # X_train and X_test are now fully imputed and cleaned for further modeling.
 # Now transformations against skewness can be applied if needed.
@@ -385,11 +426,22 @@ X_test[numerical] = scaler.transform(X_test[numerical])
 
 
 """Final Data exploration (distributions and descriptive statistics)"""
-# 1. Select a variable from the columns of the training set (X_train)
-selectedVariable = st.selectbox("Select variable to plot:", X_train.select_dtypes(include='number').columns)
 
+# Make a on/off button to select train/test set
+on = st.toggle('Turn on to see test set')
+if on:
+    dataset = X_test
+    dataset_name = "X_test set"
+    
+else:
+    dataset = X_train
+    dataset_name = "X_train set"
+
+# 1. Select a variable from the columns of the training set (X_train)
+
+selectedVariable = st.selectbox("Select variable to plot:", dataset.columns)
 # 2. Plot the histogram using the training data for the selected variable
-render_plot(X_train[selectedVariable].hist, bins=30, alpha=0.4, edgecolor='black', label=selectedVariable)
+render_plot(dataset[selectedVariable].hist, f'{dataset_name}', bins=30, alpha=0.4, edgecolor='black', label=selectedVariable)
 
 st.write(X_train.describe())
 
@@ -414,3 +466,5 @@ render_plot(X_train['SEX_Female'].value_counts().plot,
             edgecolor='black')
 ##############################################################################
 
+"""Limitations: 
+- Patients were followed-up in incomparable timespans (e.g. 1 patient 2 years, another 6 years) --> can bias predictions"""
