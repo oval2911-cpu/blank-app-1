@@ -24,11 +24,44 @@ from sklearn.linear_model import LogisticRegression
 # title and subtitle for the app
 st.title("Prediction of the cardiovascular events using the baseline patient characteristics from the Framingham dataset")
 
-st.markdown("*Tom Einhaus: i6339207, Alisa Ovsiannikova: i6365923*")
-st.markdown("*MAI3002: Introduction to Programming*")
-st.markdown("*Faculty of Health, Medicine, and Life Sciences*")
-st.markdown("*Maastricht University*")
-st.markdown("***December 16th, 2025***")
+st.write("*Tom Einhaus: i6339207, Alisa Ovsiannikova: i6365923*")
+st.write("*MAI3002: Introduction to Programming*")
+st.write("*Faculty of Health, Medicine, and Life Sciences*")
+st.write("*Maastricht University*")
+st.write("***December 16th, 2025***")
+
+# contents and anchor links to different headers
+
+st.header("Contents:")
+st.sidebar.markdown("[1. Background and Research Question](#background-and-research-question)")
+st.sidebar.markdown("[2. Data Preparation](#data-preparation)")
+st.sidebar.markdown("[3. Exploratory Data Analysis (EDA), Cleaning, and Feature Engineering](#exploratory-data-analysis-eda-leaning-and-feature-ngineering)") 
+st.sidebar.markdown("[4. Visualization of the Final Clean Data](#visualization-of-the-final-clean-data)")
+st.sidebar.markdown("[5. ML Models Training and Prediction Evaluation](#ml-models-training-and-prediction-evaluation)") 
+st.sidebar.markdown("[6. Comparing ML Models](#comparing-ml-models)")
+st.sidebar.markdown("[7. Conclusion](#conclusion)")
+st.sidebar.markdown("[8. References](#references)")
+
+st.markdown("[1. Background and Research Question](#background-and-research-question)")
+st.markdown("[2. Data Preparation](#data-preparation)")
+st.markdown("[3. Exploratory Data Analysis (EDA), Cleaning, and Feature Engineering](#exploratory-data-analysis-eda-leaning-and-feature-ngineering)") 
+st.markdown("[4. Visualization of the Final Clean Data](#visualization-of-the-final-clean-data)")
+st.markdown("[5. ML Models Training and Prediction Evaluation](#ml-models-training-and-prediction-evaluation)") 
+st.markdown("[6. Comparing ML Models](#comparing-ml-models)")
+st.markdown("[7. Conclusion](#conclusion)")
+st.markdown("[8. References](#references)")
+
+st.header("1. Background and Research Question") #background on the dataset and our RQ
+st.header("2. Data Preparation")  #exploration of raw dataset and subsetting
+st.header("3. Exploratory Data Analysis (EDA), Cleaning, and Feature Engineering") #exploration of our subset and cleaning
+st.header("4. Visualization of the Final Clean Data") #visualization of our cleaned subset
+#see if i can do scaling, is_female and creating 1 label at the end and maybe feature selection
+st.header("5. ML Models Training and Prediction Evaluation") #4 algorithms, evaluation also includes CV and feature importance
+st.header("6. Comparing ML Models") #selecting the best model out of 4 fine-tuned models
+st.header("7. Conclusion")
+st.header("8. References") #include genAI statement
+
+
 
 # define function for plotting (for all plots to be formatted in a same way)
 def render_plot(obj, title="", *args, **kwargs):
