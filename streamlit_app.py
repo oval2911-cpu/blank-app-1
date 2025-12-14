@@ -79,7 +79,7 @@ st.write("*Previously reported research shows BMI, cholesterol and blood pressur
 # section 2
 st.header("2. Data Preparation")  #exploration of raw dataset and subsetting
 
-st.write('### Raw Dataset Preview')
+st.write('### Raw Dataset Preview:')
 # load dataset
 data_heart = pd.read_csv('https://raw.githubusercontent.com/LUCE-Blockchain/Databases-for-teaching/refs/heads/main/Framingham%20Dataset.csv')
 data_heart
@@ -89,7 +89,7 @@ st.write("""
 - *Some cells contain 'None', therefore, **some missing values can already be expected and will have to be handled***
 """)
 
-st.write('### Raw Dataset Descriptive Statistics')
+st.write('### Raw Dataset Descriptive Statistics:')
 st.write(data_heart.describe())
 st.write("""
 - ***RANDID variable is not interesting**, therefore, it **will be removed** in the following steps*
@@ -99,61 +99,50 @@ st.write("""
 print(data_heart.isna().sum()) #in the terminal output it can be seen that there are some missing values that have to be checked for and handled
 print(data_heart.duplicated().sum()) #in the terminal output it can be seen that there are no duplicates
 
-st.write('### Raw Dataset Variables')
+st.write('### Raw Dataset Variables:')
 st.write(data_heart.columns)
 st.write(f'Number of all variables: :blue-background[{len(data_heart.columns)}]')
 st.write("""
-- *To answer the RQ, the **subset will be created** including only the variables of interest:
-    - SEX
-    - TOTCHOL
-    - AGE
-    - SYSBP
-    - DIABP
-    - CURSMOKE
-    - CIGPDAY
-    - BMI
-    - DIABETES
-    - HEARTRTE
-    - GLUCOSE
-    - educ
-    - PREVCHD
-    - PREVSTRK
-    - PREVHYP?
-    - TIME?
-    - PERIOD?
-    - DEATH?
-    - ANYCHD
-    - STROKE
-    - HYPERTEN?
-    - TIMECHD?
-    - TIMESTRK?
-    - TIMEDTH?
-    - TIMEHYP?
-- The following variables will therefore be excluded:*
-    - *RANDID: does not contain any valuable information (later!)
-    - *ANGINA, PREVAP, TIMEAP: not looking into that disease*
-    - *HOSPMI, MI_FCHD, CVD: included in other variables that will be left in the subset (ANYCHD, STROKE)*
-    - *PREVMI: included in other variables that will be left in the subset (PREVCHD)
-    - *TIMECVD, TIMEMIFC, TIMEMI: included in other variables that will be left in the subset (TIMECHD, TIMESTRK)*
-    - *HDLC, LDLC: only available in Period 3 while we want to look into the baseline (Period 1)*
-    - *BPMEDS: contain information *
-
+- *To answer the RQ, the **subset will be created** in 2 steps:*
+    1. *Filtering:*
+        - *Keep **only Period 1 records** for each participant to define baseline 'at-risk' population*
+        - ***Filter out participants with prevalent disease** (PREVCHD=1, PREVSTRK=1) at Period 1 to ensure we are keeping only the population 'at risk' for a first event
+    2. *Including only the variables of interest:*
+        - *Demographics: **SEX, AGE, educ***
+    - *Clinical health data: **TOTCHOL, SYSBP, DIABP, DIABETES, HEARTRTE,
+    GLUCOSE ***
+    - *Lifestyle: **CURSMOKE, CIGPDAY, BMI, ***
+    - *Occurrence of cardiovascular diseases:
+    **ANYCHD, STROKE***
+        - PREVCHD, PREVSTRK, PREVHYP?
+        - TIME?
+        - PERIOD?
+        - DEATH?
+        - HYPERTEN?
+        - TIMECHD?
+        - TIMESTRK?
+        - TIMEDTH?
+        - TIMEHYP?
+    - *The following variables will therefore be **excluded:***
+        - ***RANDID**: does not contain any valuable information (later!)*
+        - ***ANGINA, PREVAP, TIMEAP**: not looking into that disease*
+        - ***HOSPMI, MI_FCHD, CVD, PREVMI, TIMECVD, TIMEMIFC, TIMEMI**: included in other variables that will be left in the subset (ANYCHD, STROKE, PREVCHD, PREVSTRK, TIMECHD, TIMESTRK)*
+        - ***HDLC, LDLC**: only available in Period 3 while we want to look into the baseline (Period 1)*
+        - ***BPMEDS**: contain information ?*
 """)
 
-data_heart_subset = data_heart.drop(columns = ['ANGINA', 'HOSPMI', 'MI_FCHD', 'CVD', 'PREVAP', 'PREVMI', 'TIMECVD', 'TIMEMIFC', 'TIMEMI', 'TIMEAP', 'HDLC', 'LDLC', 'BPMEDS'])
 
-
-#rename subset to make it easier to call it
+data_heart_subset = data_heart.drop(columns = ['RANDID', 'ANGINA', 'PREVAP', 'TIMEAP', 'HOSPMI', 'MI_FCHD', 'CVD', 'PREVMI', 'TIMECVD', 'TIMEMIFC', 'TIMEMI', 'HDLC', 'LDLC', 'BPMEDS'])
+# rename subset to make it easier to call it
 dhs = data_heart_subset
 
+st.write("Created Subset Preview:")
+dhs
+st.write(f'**Shape** (n of rows and columns) of the subset: :blue-background[{dhs.shape}]')
+
+st.write("Created Subset Variables:")
 """check all columns of the created subset"""
 st.write(dhs.columns)
-
-"""see the subset"""
-st.write(dhs.head(100))
-
-#check the shape of the subset
-st.write(dhs.shape)
 
 st.write("""
 - *To further reduce our subset, it will be filtered based on:
@@ -161,7 +150,7 @@ st.write("""
 """)
 
 
-# 1. Keep only Period 1 records for each participant to define baseline 'at-risk' population.
+# 1. Keep only Period 1 .
 dhs = dhs.loc[dhs['PERIOD'] == 1].copy()
 
 # 2. Filter out participants with prevalent disease (PREVCHD=1 or PREVSTRK=1) at Period 1.
