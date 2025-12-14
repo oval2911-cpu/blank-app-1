@@ -9,9 +9,17 @@ import matplotlib.figure
 from sklearn.experimental import enable_iterative_imputer
 from sklearn.impute import IterativeImputer
 from sklearn.preprocessing import LabelEncoder
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, cross_val_score, cross_val_predict
 from scipy.stats import skew
 from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import accuracy_score
+from sklearn.metrics import classification_report
+from sklearn.metrics import confusion_matrix
+from sklearn.metrics import roc_curve, auc
+from sklearn import tree
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.linear_model import LogisticRegression
 
 
 
@@ -113,6 +121,7 @@ def render_plot(obj, title="", *args, **kwargs):
     
     return fig
 
+st.write('## Dataset Summary')
 #load dataset
 data_heart = pd.read_csv('https://raw.githubusercontent.com/LUCE-Blockchain/Databases-for-teaching/refs/heads/main/Framingham%20Dataset.csv')
 
@@ -464,7 +473,175 @@ render_plot(X_train['SEX_Female'].value_counts().plot,
             kind='bar', 
             alpha=0.8, 
             edgecolor='black')
+
+
+"import seaborn as sns"
+"sns.pairplot(data, hue = 'species');"
 ##############################################################################
+
+
+st.write('## Classification problem: Machine Learning for predicting CVD from baseline patient characteristics')
+
+# interactive sidebar to select cross-validation and number of folds
+cv = st.sidebar.checkbox("Cross-validation", value=True)
+cv_value = st.sidebar.selectbox("Select number of folds for cross-validation:", [5, 10])
+    
+# model evaluation function (so that it can be reused for all models)
+def model_evaluation(model_name, model, prediction):
+    # accuracy and classification report
+    with st.expander("Accuracy and Classification Report"):
+        accuracy = accuracy_score(y_true=y_test, y_pred=prediction)
+        report = classification_report(y_true=y_test, y_pred=prediction, output_dict = True)
+        st.write(f'Accuracy: {accuracy:.2f}')
+        st.dataframe(pd.DataFrame(report).transpose())
+
+    # confusion matrix
+    with st.expander("Confusion Matrix"):
+        cm = confusion_matrix(y_true=y_test, normalize='true', y_pred=prediction)
+        fig_cm, ax_cm = plt.subplots()
+        sns.heatmap(cm, annot=True, ax=ax_cm)
+        st.pyplot(fig_cm)
+
+    # visualization (only for decision tree)
+    if model_name == "Decision Tree":
+        with st.expander("Decision Tree Visualization"):
+            fig_dt, ax_dt = plt.subplots(figsize=(16,10))
+            tree.plot_tree(model, ax=ax_dt);
+            st.pyplot(fig_dt)
+
+    # ROC curve and AUC (since we have binary classification)
+    y_prob = model.predict_proba(X_test)[:,1]
+    fpr, tpr, thresholds = roc_curve(y_test, y_prob)
+    auc_value = auc(fpr, tpr)
+    with st.expander("AUC"):
+        fig_auc, ax_auc = plt.subplots()
+        ax_auc.plot([0, 1], [0, 1], 'k--')
+        ax_auc.plot(fpr, tpr, label=f'{model_name} (area = {auc_value:.3f})')
+        ax_auc.set(
+        xlabel='False positive rate',
+        ylabel='True positive rate (Recall)',
+        title='ROC curve')
+        ax_auc.legend(loc='best');
+        st.pyplot(fig_auc)
+
+    # Cross-validation
+    if cv:
+        with st.expander("Cross-validation"):
+            cv_scores = cross_val_score(model, X_train, y_train, scoring='accuracy', cv=cv_value)
+            prediction_cv = cross_val_predict(model, X_test, y_test, cv=cv_value)
+            st.write(f'Cross-validation accuracy is {cv_scores.mean().round(2)} with a standard deviation of {cv_scores.std().round(2)}')
+            # confusion matrix
+            cm_cv = confusion_matrix(y_true=y_test, normalize='true', y_pred=prediction_cv)
+            fig_cm, ax_cm = plt.subplots()
+            sns.heatmap(cm_cv, annot=True, ax=ax_cm)
+            st.pyplot(fig_cm)
+            # AUC
+            y_prob_cv = model.predict_proba(X_test)[:,1]
+            fpr_cv, tpr_cv, thresholds_cv = roc_curve(y_test, y_prob_cv)
+            auc_cv = auc(fpr_cv, tpr_cv)
+            fig_cv, ax_cv = plt.subplots()
+            ax_cv.plot([0, 1], [0, 1], 'k--')
+            ax_cv.plot(fpr_cv, tpr_cv, label=f'{model_name} (cv) (area = {auc_cv:.3f})')
+            ax_cv.set(
+            xlabel='False positive rate',
+            ylabel='True positive rate (Recall)',
+            title='ROC curve')
+            ax_cv.legend(loc='best');
+            st.pyplot(fig_cv)
+
+
+# Logistic regression
+st.write('### Algorithm 1: Logistic regression')
+model_name = "Logistic regression"
+
+# add interaction 
+
+# TRAINING AND PREDICTION
+
+# define logistic regression (lr) classifier
+model_lr = LogisticRegression(max_iter=1000)
+# train lr
+model_lr = model_lr.fit(X_train, y_train)
+# predict using test data
+prediction_lr = model_lr.predict(X_test)
+
+# EVALUATION
+model_evaluation(model_name, model_lr, prediction_lr)
+
+# Decision Tree
+st.write('### Algorithm 2: Decision Tree')
+model_name = "Decision Tree"
+
+# add interaction 
+
+# TRAINING AND PREDICTION
+
+# define decision tree (dt) classifier
+model_dt = tree.DecisionTreeClassifier(random_state=42, max_depth=15)
+# train dt
+model_dt = model_dt.fit(X_train, y_train)
+# predict using test data
+prediction_dt = model_dt.predict(X_test)
+
+# EVALUATION
+model_evaluation(model_name, model_dt, prediction_dt)
+
+# Random Forest
+st.write('### Algorithm 3: Random Forest')
+model_name = "Random Forest"
+
+# add interaction 
+
+# TRAINING AND PREDICTION
+
+# define random forest classifier
+model_rf = RandomForestClassifier(max_depth=2, random_state=0)
+# train rf
+model_rf = model_rf.fit(X_train, y_train)
+# predict using test data
+prediction_rf = model_rf.predict(X_test)
+
+# EVALUATION
+model_evaluation(model_name, model_rf, prediction_rf)
+
+# KNN
+st.write('### Algorithm 4: KNN')
+model_name = "KNN"
+# add interaction
+
+# TRAINING AND PREDICTION
+
+# define KNN classifier
+model_KNN = KNeighborsClassifier(n_neighbors=5, weights='uniform', algorithm='auto', leaf_size=30, metric='minkowski')
+# train rf
+model_KNN = model_KNN.fit(X_train, y_train)
+# predict using test data
+prediction_KNN = model_KNN.predict(X_test)
+
+# EVALUATION
+model_evaluation(model_name, model_KNN, prediction_KNN)
+
+#MORE MODELS?
+
+
+"Algorithm choice and what to mention when comparing them:"
+"For example, do we need to explain how the algorithm's"
+"choice was made? Why is the algorithm advising this treatment for you?"
+"(whitebox vs blackbox algorithms)"
+"Or perhaps some algorithms just take too much time to train,"
+"even with todays computational power"
+
+
+
+
+
+
+
+
+
+
+
+
 
 """Limitations: 
 - Patients were followed-up in incomparable timespans (e.g. 1 patient 2 years, another 6 years) --> can bias predictions"""
