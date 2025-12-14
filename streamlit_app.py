@@ -21,18 +21,22 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.linear_model import LogisticRegression
 
+
 # title and subtitle for the app
 st.title("Prediction of the cardiovascular events using the baseline patient characteristics from the Framingham dataset")
 
-st.write("*Tom Einhaus: i6339207, Alisa Ovsiannikova: i6365923*")
-st.write("*MAI3002: Introduction to Programming*")
-st.write("*Faculty of Health, Medicine, and Life Sciences*")
-st.write("*Maastricht University*")
-st.write("***December 16th, 2025***")
+st.markdown("""*Tom Einhaus: i6339207, Alisa Ovsiannikova: i6365923*  
+*MAI3002: Introduction to Programming*  
+*Faculty of Health, Medicine, and Life Sciences*  
+*Maastricht University*
 
-# contents and anchor links to different headers
+***December 16th, 2025***""")
 
-st.header("Contents:")
+
+# contents and anchor links to different sections (headers) in the sidebar and the page itself
+
+st.write("## Contents:")
+
 st.sidebar.markdown("[1. Background and Research Question](#background-and-research-question)")
 st.sidebar.markdown("[2. Data Preparation](#data-preparation)")
 st.sidebar.markdown("[3. Exploratory Data Analysis (EDA), Cleaning, and Feature Engineering](#exploratory-data-analysis-eda-leaning-and-feature-ngineering)") 
@@ -51,8 +55,30 @@ st.markdown("[6. Comparing ML Models](#comparing-ml-models)")
 st.markdown("[7. Conclusion](#conclusion)")
 st.markdown("[8. References](#references)")
 
+
+# section 1
 st.header("1. Background and Research Question") #background on the dataset and our RQ
+
+st.write("### Framingham Heart Study Dataset:")
+st.write("""- ***Extensive follow-up study** dataset on **cardiovascular health** ongoing **since 1948***
+- *Up to **3 follow-up periods** (fewer for some patients): **Period 1 = baseline***
+- ***11,627 examination records** (rows) from **4,434 patients***
+- ***39 variables:***
+    - *Demographics (sex, age)*
+    - *Clinical health data (blood pressure, diabetes)*
+    - *Lifestyle (smoking, BMI)*
+    - *Occurrence of cardiovascular diseases (stroke, coronary heart disease (CHD))*""")
+
+st.write("### Research Question:")
+st.write("***To what extent** can **baseline patient characteristics from the Framingham dataset** be used by machine-learning models to **reliably predict the occurrence of major cardiovascular events** (stroke, CHD, myocardial infarction (MI), and coronary insufficiency)?*")
+
+st.write("### Previous Research Findings:")
+st.write("*Previously reported research shows BMI, cholesterol and blood pressure can have an influence on CVD risk (Bays et al., 2021): → Which modifiable factors are correlated with CVD the strongest, and are thus worth minimizing?*")
+
+
+# section 2
 st.header("2. Data Preparation")  #exploration of raw dataset and subsetting
+
 st.header("3. Exploratory Data Analysis (EDA), Cleaning, and Feature Engineering") #exploration of our subset and cleaning
 st.header("4. Visualization of the Final Clean Data") #visualization of our cleaned subset
 #see if i can do scaling, is_female and creating 1 label at the end and maybe feature selection
@@ -60,8 +86,6 @@ st.header("5. ML Models Training and Prediction Evaluation") #4 algorithms, eval
 st.header("6. Comparing ML Models") #selecting the best model out of 4 fine-tuned models
 st.header("7. Conclusion")
 st.header("8. References") #include genAI statement
-
-
 
 # define function for plotting (for all plots to be formatted in a same way)
 def render_plot(obj, title="", *args, **kwargs):
