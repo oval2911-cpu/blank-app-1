@@ -1,4 +1,4 @@
-#import libraries
+# import libraries
 import pandas as pd
 import streamlit as st
 import matplotlib.pyplot as plt
@@ -21,27 +21,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.linear_model import LogisticRegression
 
-
-
-st.markdown("*Streamlit* is **really** ***cool***.")
-st.markdown('''
-    :red[Streamlit] :orange[can] :green[write] :blue[text] :violet[in]
-    :gray[pretty] :rainbow[colors] and :blue-background[highlight] text.''')
-
-multi = '''If you end a line with two spaces,
-a soft return is used for the next line.
-
-st.markdown("This is black and :red[this is red!]")
-
-Two (or more) newline characters in a row will result in a hard return.
-'''
-st.markdown(multi)
-
-
-
-
-
-
+# title and subtitle for the app
 st.title("Prediction of the cardiovascular events using the baseline patient characteristics from the Framingham dataset")
 
 st.markdown("*Tom Einhaus: i6339207, Alisa Ovsiannikova: i6365923*")
@@ -50,62 +30,37 @@ st.markdown("*Faculty of Health, Medicine, and Life Sciences*")
 st.markdown("*Maastricht University*")
 st.markdown("***December 16th, 2025***")
 
-
+# define function for plotting (for all plots to be formatted in a same way)
 def render_plot(obj, title="", *args, **kwargs):
-    """
-    Universal Streamlit plot wrapper.
-    
-    Accepts:
-    - Figure objects
-    - Axes objects
-    - Array of Axes (e.g., df.hist())
-    - Callable plotting functions
-    - pandas Series (automatically plotted as histogram)
-    
-    Automatically:
-    - Creates figure if needed
-    - Applies layout fixes
-    - Displays the figure in Streamlit
-    """
     figsize=(12, 8)
-    # ----------------------------
-    # CASE 0 — pandas Series
-    # ----------------------------
+    
+    # for pandas Series
     if isinstance(obj, pd.Series):
         fig = obj.plot(kind='hist', figsize=figsize, **kwargs).get_figure()
     
-    # ----------------------------
-    # CASE 1 — Callable
-    # ----------------------------
+    # for callables
     elif callable(obj):
         fig = plt.figure(figsize=figsize, constrained_layout=True)
         obj(*args, **kwargs)
     
-    # ----------------------------
-    # CASE 2 — Figure
-    # ----------------------------
+    # for figures
     elif isinstance(obj, matplotlib.figure.Figure):
         fig = obj
     
-    # ----------------------------
-    # CASE 3 — Single Axes
-    # ----------------------------
+    # for single axes
     elif isinstance(obj, matplotlib.axes.Axes):
         fig = obj.get_figure()
     
-    # ----------------------------
-    # CASE 4 — Array of Axes (e.g., df.hist())
-    # ----------------------------
+    # for array of axes (e.g. df.hist())
     elif isinstance(obj, (np.ndarray, list)) and all(isinstance(a, matplotlib.axes.Axes) for a in np.ravel(obj)):
         axes = np.ravel(obj)
         fig = axes[0].get_figure()
     
+    # in case of not supported types show an error
     else:
         raise TypeError(f"render_plot received an unsupported type: {type(obj)}")
     
-    # ----------------------------
-    # Layout adjustments
-    # ----------------------------
+    # layout
     fig.tight_layout(pad=2.0)
     fig.subplots_adjust(top=0.9)
     fig.suptitle(title, fontsize=30)
@@ -114,19 +69,20 @@ def render_plot(obj, title="", *args, **kwargs):
     for ax in fig.axes:
         ax.tick_params(axis='x', rotation=30)
     
-    # ----------------------------
-    # Display in Streamlit
-    # ----------------------------
+    # show in streamlit
     st.pyplot(fig)
     
     return fig
 
-st.write('## Dataset Summary')
-#load dataset
+# header for the app
+st.write('## Raw Dataset Preview')
+
+# load dataset
 data_heart = pd.read_csv('https://raw.githubusercontent.com/LUCE-Blockchain/Databases-for-teaching/refs/heads/main/Framingham%20Dataset.csv')
 
-"""Prints Dataset Head"""
 data_heart
+
+st.write("*Each row represents one exam, so there are more rows than number of patients (RANDIDs repeat)*")
 
 """--> each row represents one exam, so there are more rows than number of patients (RANDIDs repeat)
 
@@ -480,11 +436,13 @@ render_plot(X_train['SEX_Female'].value_counts().plot,
 ##############################################################################
 
 
-st.write('## Classification problem: Machine Learning for predicting CVD from baseline patient characteristics')
+st.write('## Classification: Machine Learning for predicting CVD from baseline patient characteristics')
 
 # interactive sidebar to select cross-validation and number of folds
-cv = st.sidebar.checkbox("Cross-validation", value=True)
-cv_value = st.sidebar.selectbox("Select number of folds for cross-validation:", [5, 10])
+cv = st.sidebar.checkbox("Cross-validation",
+                         value=True)
+cv_value = st.sidebar.selectbox("Select number of folds for cross-validation:",
+                                [5, 10])
     
 # model evaluation function (so that it can be reused for all models)
 def model_evaluation(model_name, model, prediction):
@@ -555,8 +513,11 @@ st.write('### Algorithm 1: Logistic regression')
 model_name = "Logistic regression"
 
 # specify parameters 
-class_weight_lr = st.selectbox('Select class_weight parameter:', ['balanced', None], key = 'class_weight_lr')
-penalty_lr = st.selectbox('Select penalty parameter (lbfgs solver by default):', ['l2', None])
+class_weight_lr = st.selectbox('Select class_weight parameter:',
+                               ['balanced', None], #the first value is always a default here and in the following select boxes unless user specifies it
+                               key = 'class_weight_lr') #added to avoid duplicated class_weight select boxes (bc use them below as well)
+penalty_lr = st.selectbox('Select penalty parameter (lbfgs solver by default):',
+                          ['l2', None]) #lbfgs solver by default can only have these penalties
 
 # TRAINING AND PREDICTION
 
@@ -583,11 +544,16 @@ class_weight_dt = st.selectbox('Select class_weight parameter:',
 splitter_dt = st.selectbox('Select splitter:',
                            ['best', 'random'])
 max_depth_dt = st.slider('Specify maximum tree depth:',
-                         1, X_train.shape[0]-1, 10,
+                         min_value = 1, #1 is chosen bc this way user can see that most probalby this value is too low to get valuable predictions
+                         max_value = X_train.shape[0]-1, #this specific value is the max possible value for depth (number of samples - 1)
+                         value = 10, #chosen as default as the best depth found
                          key = 'max_depth_dt')
 min_samples_leaf_dt = st.slider('Specify minimum number ' \
                                 'of samples in a leaf node ' \
-                                'after splitting to avoid overfitting:', 1, X_train.shape[0] // 2, 20,
+                                'after splitting to avoid overfitting:',
+                                min_value = 1, #should not be used as leads to overfitting
+                                max_value = X_train.shape[0] // 2, #this is a max possible value for that (half of number of samples)
+                                value = 20, #chosen as default as the best found
                                 key = 'min_samples_leaf_dt')
 
 # TRAINING AND PREDICTION
@@ -615,9 +581,13 @@ class_weight_rf = st.selectbox('Select class_weight parameter:',
                                ['balanced', 'balanced_subsample', None],
                                key = 'class_weight_rf')
 n_estimators_rf = st.slider('Select number of decision trees in the forest:',
-                            50, 1000, 100)
+                            min_value = 10,
+                            max_value = 500, #to not make it too computationally heavy
+                            value = 100) #chosen as default as the best found
 max_depth_rf = st.slider('Specify maximum tree depth:',
-                         1, X_train.shape[0]-1, 10,
+                         min_value = 1,
+                         max_value = X_train.shape[0]-1,
+                         value = 10, #chosen as default as the best found
                          key = 'max_depth_rf')
 min_samples_leaf_rf = st.slider('Specify minimum number ' \
                                 'of samples in a leaf node ' \
@@ -646,14 +616,21 @@ model_name = "KNN"
 
 # specify parameters
 n_neighbors_KNN = st.slider('Select number of neighbors:',
-                            1, 1000, int((X_train.shape[0])**0.5), 2)
+                            min_value = 1, #can lead to overfitting
+                            max_value = 500, #not to make it computationally heavy, can lead to underfitting
+                            value = int((X_train.shape[0])**0.5), #chosen as default as the best found 
+                            step = 2) #only odd numbers to avoid ties in a classification majority vote
 weights_KNN = st.selectbox('Select weight function:', 
                            ['uniform', 'distance', None])
         
 # TRAINING AND PREDICTION
 
 # define KNN classifier
-model_KNN = KNeighborsClassifier(n_neighbors=5, weights='uniform', algorithm='auto', leaf_size=30, metric='minkowski')
+model_KNN = KNeighborsClassifier(n_neighbors = n_neighbors_KNN,
+                                 weights = weights_KNN,
+                                 algorithm='auto',
+                                 leaf_size=30, #default
+                                 metric='minkowski') #since p=2 is default in sklearn knn --> metric is Euclidean distance
 # train rf
 model_KNN = model_KNN.fit(X_train, y_train)
 # predict using test data
@@ -664,8 +641,6 @@ model_evaluation(model_name, model_KNN, prediction_KNN)
 
 #table with best fine-tuned models comparison
 # and explanation why we think which one is better
-
-
 "Algorithm choice and what to mention when comparing them:"
 "For example, do we need to explain how the algorithm's"
 "choice was made? Why is the algorithm advising this treatment for you?"
@@ -674,17 +649,23 @@ model_evaluation(model_name, model_KNN, prediction_KNN)
 "even with todays computational power"
 
 
+st.write('## Conclusion')
 
-
-
-
-
-
-
-
-
-
-"""Conclusion"""
 """Limitations: 
 - Patients were followed-up in incomparable timespans (e.g. 1 patient 2 years, another 6 years) --> can bias predictions"""
 """Answer on RQ based on ML, feature importance"""
+
+
+st.markdown("*Streamlit* is **really** ***cool***.")
+st.markdown('''
+    :red[Streamlit] :orange[can] :green[write] :blue[text] :violet[in]
+    :gray[pretty] :rainbow[colors] and :blue-background[highlight] text.''')
+
+multi = '''If you end a line with two spaces,
+a soft return is used for the next line.
+
+st.markdown("This is black and :red[this is red!]")
+
+Two (or more) newline characters in a row will result in a hard return.
+'''
+st.markdown(multi)
