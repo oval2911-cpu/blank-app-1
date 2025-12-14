@@ -554,12 +554,16 @@ def model_evaluation(model_name, model, prediction):
 st.write('### Algorithm 1: Logistic regression')
 model_name = "Logistic regression"
 
-# add interaction 
+# specify parameters 
+class_weight_lr = st.selectbox('Select class_weight parameter:', ['balanced', None], key = 'class_weight_lr')
+penalty_lr = st.selectbox('Select penalty parameter (lbfgs solver by default):', ['l2', None])
 
 # TRAINING AND PREDICTION
 
 # define logistic regression (lr) classifier
-model_lr = LogisticRegression(max_iter=1000)
+model_lr = LogisticRegression(max_iter=1000,
+                              class_weight = class_weight_lr,
+                              penalty = penalty_lr)
 # train lr
 model_lr = model_lr.fit(X_train, y_train)
 # predict using test data
@@ -572,12 +576,28 @@ model_evaluation(model_name, model_lr, prediction_lr)
 st.write('### Algorithm 2: Decision Tree')
 model_name = "Decision Tree"
 
-# add interaction 
+# specify parameters 
+class_weight_dt = st.selectbox('Select class_weight parameter:',
+                               ['balanced', None],
+                               key = 'class_weight_dt')
+splitter_dt = st.selectbox('Select splitter:',
+                           ['best', 'random'])
+max_depth_dt = st.slider('Specify maximum tree depth:',
+                         1, X_train.shape[0]-1, 10,
+                         key = 'max_depth_dt')
+min_samples_leaf_dt = st.slider('Specify minimum number ' \
+                                'of samples in a leaf node ' \
+                                'after splitting to avoid overfitting:', 1, X_train.shape[0] // 2, 20,
+                                key = 'min_samples_leaf_dt')
 
 # TRAINING AND PREDICTION
 
 # define decision tree (dt) classifier
-model_dt = tree.DecisionTreeClassifier(random_state=42, max_depth=15)
+model_dt = tree.DecisionTreeClassifier(random_state=42,
+                                       max_depth=max_depth_dt,
+                                       splitter = splitter_dt,
+                                       class_weight = class_weight_dt,
+                                       min_samples_leaf = min_samples_leaf_dt)
 # train dt
 model_dt = model_dt.fit(X_train, y_train)
 # predict using test data
@@ -590,12 +610,28 @@ model_evaluation(model_name, model_dt, prediction_dt)
 st.write('### Algorithm 3: Random Forest')
 model_name = "Random Forest"
 
-# add interaction 
-
+# specify parameters 
+class_weight_rf = st.selectbox('Select class_weight parameter:',
+                               ['balanced', 'balanced_subsample', None],
+                               key = 'class_weight_rf')
+n_estimators_rf = st.slider('Select number of decision trees in the forest:',
+                            50, 1000, 100)
+max_depth_rf = st.slider('Specify maximum tree depth:',
+                         1, X_train.shape[0]-1, 10,
+                         key = 'max_depth_rf')
+min_samples_leaf_rf = st.slider('Specify minimum number ' \
+                                'of samples in a leaf node ' \
+                                'after splitting to avoid overfitting:', 1, X_train.shape[0] // 2, 20,
+                                key = 'min_samples_leaf_rf')
+             
 # TRAINING AND PREDICTION
 
 # define random forest classifier
-model_rf = RandomForestClassifier(max_depth=2, random_state=0)
+model_rf = RandomForestClassifier(n_estimators = n_estimators_rf,
+                                  max_depth=max_depth_rf,
+                                  random_state=0,
+                                  class_weight = class_weight_rf,
+                                  min_samples_leaf = min_samples_leaf_rf)
 # train rf
 model_rf = model_rf.fit(X_train, y_train)
 # predict using test data
@@ -607,8 +643,13 @@ model_evaluation(model_name, model_rf, prediction_rf)
 # KNN
 st.write('### Algorithm 4: KNN')
 model_name = "KNN"
-# add interaction
 
+# specify parameters
+n_neighbors_KNN = st.slider('Select number of neighbors:',
+                            1, 1000, int((X_train.shape[0])**0.5), 2)
+weights_KNN = st.selectbox('Select weight function:', 
+                           ['uniform', 'distance', None])
+        
 # TRAINING AND PREDICTION
 
 # define KNN classifier
@@ -621,7 +662,8 @@ prediction_KNN = model_KNN.predict(X_test)
 # EVALUATION
 model_evaluation(model_name, model_KNN, prediction_KNN)
 
-#MORE MODELS?
+#table with best fine-tuned models comparison
+# and explanation why we think which one is better
 
 
 "Algorithm choice and what to mention when comparing them:"
@@ -642,6 +684,7 @@ model_evaluation(model_name, model_KNN, prediction_KNN)
 
 
 
-
+"""Conclusion"""
 """Limitations: 
 - Patients were followed-up in incomparable timespans (e.g. 1 patient 2 years, another 6 years) --> can bias predictions"""
+"""Answer on RQ based on ML, feature importance"""
