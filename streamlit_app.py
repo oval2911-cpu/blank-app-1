@@ -79,6 +79,116 @@ st.write("*Previously reported research shows BMI, cholesterol and blood pressur
 # section 2
 st.header("2. Data Preparation")  #exploration of raw dataset and subsetting
 
+st.write('### Raw Dataset Preview')
+# load dataset
+data_heart = pd.read_csv('https://raw.githubusercontent.com/LUCE-Blockchain/Databases-for-teaching/refs/heads/main/Framingham%20Dataset.csv')
+data_heart
+st.write(f'**Shape** (n of rows and columns) of the raw dataset: :blue-background[{data_heart.shape}]')
+st.write("""
+- *Each **row represents one exam**, so there are **more rows than number of patients** (RANDIDs repeat)*
+- *Some cells contain 'None', therefore, **some missing values can already be expected and will have to be handled***
+""")
+
+st.write('### Raw Dataset Descriptive Statistics')
+st.write(data_heart.describe())
+st.write("""
+- ***RANDID variable is not interesting**, therefore, it **will be removed** in the following steps*
+- *Interestingly, **sex was encoded with 1 and 2** so we should **be careful** and encode it to 0 and 1 before applying ML*
+""")
+# not visualized in the app, but the raw dataset was also checked for missing values and duplicates
+print(data_heart.isna().sum()) #in the terminal output it can be seen that there are some missing values that have to be checked for and handled
+print(data_heart.duplicated().sum()) #in the terminal output it can be seen that there are no duplicates
+
+st.write('### Raw Dataset Variables')
+st.write(data_heart.columns)
+st.write(f'Number of all variables: :blue-background[{len(data_heart.columns)}]')
+st.write("""
+- *To answer the RQ, the **subset will be created** including only the variables of interest:
+    - SEX
+    - TOTCHOL
+    - AGE
+    - SYSBP
+    - DIABP
+    - CURSMOKE
+    - CIGPDAY
+    - BMI
+    - DIABETES
+    - HEARTRTE
+    - GLUCOSE
+    - educ
+    - PREVCHD
+    - PREVSTRK
+    - PREVHYP?
+    - TIME?
+    - PERIOD?
+    - DEATH?
+    - ANYCHD
+    - STROKE
+    - HYPERTEN?
+    - TIMECHD?
+    - TIMESTRK?
+    - TIMEDTH?
+    - TIMEHYP?
+- The following variables will therefore be excluded:*
+    - *RANDID: does not contain any valuable information (later!)
+    - *ANGINA, PREVAP, TIMEAP: not looking into that disease*
+    - *HOSPMI, MI_FCHD, CVD: included in other variables that will be left in the subset (ANYCHD, STROKE)*
+    - *PREVMI: included in other variables that will be left in the subset (PREVCHD)
+    - *TIMECVD, TIMEMIFC, TIMEMI: included in other variables that will be left in the subset (TIMECHD, TIMESTRK)*
+    - *HDLC, LDLC: only available in Period 3 while we want to look into the baseline (Period 1)*
+    - *BPMEDS: contain information *
+
+""")
+
+data_heart_subset = data_heart.drop(columns = ['ANGINA', 'HOSPMI', 'MI_FCHD', 'CVD', 'PREVAP', 'PREVMI', 'TIMECVD', 'TIMEMIFC', 'TIMEMI', 'TIMEAP', 'HDLC', 'LDLC', 'BPMEDS'])
+
+
+#rename subset to make it easier to call it
+dhs = data_heart_subset
+
+"""check all columns of the created subset"""
+st.write(dhs.columns)
+
+"""see the subset"""
+st.write(dhs.head(100))
+
+#check the shape of the subset
+st.write(dhs.shape)
+
+st.write("""
+- *To further reduce our subset, it will be filtered based on:
+    - **
+""")
+
+
+# 1. Keep only Period 1 records for each participant to define baseline 'at-risk' population.
+dhs = dhs.loc[dhs['PERIOD'] == 1].copy()
+
+# 2. Filter out participants with prevalent disease (PREVCHD=1 or PREVSTRK=1) at Period 1.
+# This ensures we are left with the population 'at risk' for a first event.
+dhs = dhs.loc[
+    (dhs['PREVCHD'] == 0) & (dhs['PREVSTRK'] == 0)
+].copy()
+
+# 3. Calculate the Incident Target Variable.
+# For this 'at-risk' group, ANYCHD=1 or STROKE=1 in the Period 1 record indicates an
+# INCIDENT event after Period 1, because the 1 is filled in each period
+dhs['targetDisease'] = (
+    (dhs['ANYCHD'] == 1) | (dhs['STROKE'] == 1)
+).astype(int)
+
+"""--> Missing values have to be handled"""
+"""--> No duplicates to handle
+Creating a subset to answer our RQs:
+check columns of the created subset
+RANDID: not interesting
+For the full subset:
+SYSBP, heartrate: right skewed.
+BMI, TOTCHOL, HDLC, LDLC: very slightly right skewed, but 12k values & mean & median close to each other → symmetric
+Other: approx. normally distributed
+Interestingly sex was encoded with 1 and 2 --> be careful
+"""
+
 st.header("3. Exploratory Data Analysis (EDA), Cleaning, and Feature Engineering") #exploration of our subset and cleaning
 st.header("4. Visualization of the Final Clean Data") #visualization of our cleaned subset
 #see if i can do scaling, is_female and creating 1 label at the end and maybe feature selection
@@ -131,79 +241,7 @@ def render_plot(obj, title="", *args, **kwargs):
     
     return fig
 
-# header for the app
-st.write('## Raw Dataset Preview')
 
-# load dataset
-data_heart = pd.read_csv('https://raw.githubusercontent.com/LUCE-Blockchain/Databases-for-teaching/refs/heads/main/Framingham%20Dataset.csv')
-
-data_heart
-
-st.write("*Each row represents one exam, so there are more rows than number of patients (RANDIDs repeat)*")
-
-"""--> each row represents one exam, so there are more rows than number of patients (RANDIDs repeat)
-
---> can already expect some missing values
-"""
-
-"""see shape (n of rows and columns) of the dataset"""
-st.write(data_heart.shape)
-
-"""descriptive statistics on full dataset"""
-st.write(data_heart.describe())
-
-"""look at all column names"""
-st.write(data_heart.columns)
-
-"""summarize information on missing values per feature"""
-st.write(data_heart.isna().sum())
-
-"""--> Missing values have to be handled"""
-
-st.write(data_heart.duplicated().sum())
-
-"""--> No duplicates to handle
-
-Identify main research question:
-**Main RQ & subquestions:**
-How accurately can a machine-learning model predict the occurrence of cardiovascular events (stroke, CHD, MI, or coronary insufficiency) using baseline patient characteristics from the Framingham dataset?
-##Select rows and columns relevant to the research question:
-"""
-
-#We want to exclude the following columns (number in brackets is index):
-# ANGINA (24), HOSPMI (25), MI_FCHD (26), TIME..(31-38)
-data_heart_subset = data_heart.drop(columns = ['ANGINA', 'HOSPMI', 'MI_FCHD', 'CVD', 'PREVAP', 'PREVMI', 'TIMECVD', 'TIMEMIFC', 'TIMEMI', 'TIMEAP', 'HDLC', 'LDLC', 'BPMEDS']) #drop these columns hdlc, ldlc only in period3 available, thus inappropriate to calculate risk
-#                                    + [col for col in data_heart.columns if col.startswith('PREV')]) #drop columns that start with PREV... when iterating over all columns
-#                                    + [col for col in data_heart.columns if col.startswith('TIME')]) #drop columns that start with TIME... when iterating over all columns
-
-
-#rename subset to make it easier to call it
-dhs = data_heart_subset
-
-"""check all columns of the created subset"""
-st.write(dhs.columns)
-
-"""see the subset"""
-st.write(dhs.head(100))
-
-#check the shape of the subset
-st.write(dhs.shape)
-
-# 1. Keep only Period 1 records for each participant to define baseline 'at-risk' population.
-dhs = dhs.loc[dhs['PERIOD'] == 1].copy()
-
-# 2. Filter out participants with prevalent disease (PREVCHD=1 or PREVSTRK=1) at Period 1.
-# This ensures we are left with the population 'at risk' for a first event.
-dhs = dhs.loc[
-    (dhs['PREVCHD'] == 0) & (dhs['PREVSTRK'] == 0)
-].copy()
-
-# 3. Calculate the Incident Target Variable.
-# For this 'at-risk' group, ANYCHD=1 or STROKE=1 in the Period 1 record indicates an
-# INCIDENT event after Period 1, because the 1 is filled in each period
-dhs['targetDisease'] = (
-    (dhs['ANYCHD'] == 1) | (dhs['STROKE'] == 1)
-).astype(int)
 
 """Data exploration (distributions and descriptive statistics)"""
 selectedVariable = st.selectbox("Select variable to plot:", dhs.select_dtypes(include='number').columns)
