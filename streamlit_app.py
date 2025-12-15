@@ -222,6 +222,21 @@ st.write(dhs.Disease.value_counts())
 dhs = dhs.drop('ANYCHD', axis=1)
 dhs = dhs.drop('STROKE', axis=1)
 
+#splitting data
+X = dhs.drop('Disease', axis=1) 
+y = dhs['Disease']
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, 
+    test_size=0.2, 
+    random_state=1,
+    stratify=y 
+)
+# allocate all categorical and numerical variables to corresponding separate variables
+categorical = ['SEX', 'educ', 'DIABETES', 'CURSMOKE']
+numerical = ['AGE', 'TOTCHOL', 'SYSBP', 'DIABP', 'HEARTRTE', 'GLUCOSE', 'CIGPDAY', 'BMI']
+# create 2 dataframes with different types of variables
+num_df = X_train[numerical]
+cat_df = X_train[categorical]
 
 
 """--> Missing values have to be handled"""
@@ -230,252 +245,203 @@ Outliers
 transformations for skewed data
 encoding 
 put target in 1
-
+##Outlier detection and handling, Impute only Period 1, and only training set to prevent data leakage
 """
-#feature engineering
-st.write("### One Hot Encoding for SEX variable")
-# create a new binary column
-dhs['SEX_Female'] = dhs['SEX'].replace({
-    1: 0, # map original value 1 (Male) to 0
-    2: 1  # map original value 2 (Female) to 1
-})
-st.write(f'Values of new **SEX_Female variable** after encoding: :blue-background[{set(dhs.SEX_Female)}]')
-dhs = dhs.drop('SEX', axis=1) #drop original SEX variable
 
-
-
-
-"""##Outlier detection and handling, Impute only Period 1, and only training set to prevent data leakage"""
-
-X = dhs.drop('Disease', axis=1) 
-y = dhs['Disease']
-
-X_train, X_test, y_train, y_test = train_test_split(
-    X, y, 
-    test_size=0.2, 
-    random_state=1,
-    stratify=y 
-)
-
-#allocate all categorical and numerical variables to corresponding separate variables
-categorical = ['SEX_Female', 'CURSMOKE', 'DIABETES', 'educ']
-
-numerical = ['TOTCHOL', 'SYSBP', 'DIABP', 'BMI', 'HEARTRTE', 'CIGPDAY', 'GLUCOSE', 'AGE']
-
-#create 2 dataframes with different types of variables
-num_df = X_train[numerical]
-cat_df = X_train[categorical]
-
-"""plot boxplots for numerical data to see outliers and dstributions"""
+st.write("### Outlier Detection and Handling")
 render_plot(sns.boxplot, data=X_train[numerical], orient='h')
+st.write("""
+- *Most of the outliers are on the right hand side due to skewness*
+- *Age has no outliers*
+- *All outliers are theoretically possible due to extreme medical conditions, therefore, decided to keep them*
+""")
 
-"""--> most of the outliers are on the right hand side due to skewness"""
-
-##Missing data handling
-
-"""check number of missing values in each column"""
-st.write(X_train.isna().sum())
-
-"""Mode Impute educ, since it is categorical"""
-mode_value = X_train['educ'].mode()[0]
-X_train['educ'] = X_train['educ'].fillna(mode_value)
-X_test['educ'] = X_test['educ'].fillna(mode_value)
-
-"""Median Impute CIGPDA, to be more robust against outliers"""
-median_cigpday = X_train['CIGPDAY'].median()
-X_train['CIGPDAY'] = X_train['CIGPDAY'].fillna(median_cigpday)
-X_test['CIGPDAY'] = X_test['CIGPDAY'].fillna(median_cigpday)
-
-"""Median Impute BMI and Heartrate, to be more robust against outliers"""
-median_bmi = X_train['BMI'].median()
-X_train['BMI'] = X_train['BMI'].fillna(median_bmi)
-X_test['BMI'] = X_test['BMI'].fillna(median_bmi)
-
-median_heartrate = X_train['HEARTRTE'].median()
-X_train['HEARTRTE'] = X_train['HEARTRTE'].fillna(median_heartrate)
-X_test['HEARTRTE'] = X_test['HEARTRTE'].fillna(median_heartrate)
-
-"""check if there are many values outside whiskers (1.5*IQR) - outlier detection"""
+# not visualized in the app, but also checked if there are many values outside whiskers (1.5*IQR)
 Q1 = num_df.quantile(0.25)
 Q3 = num_df.quantile(0.75)
 IQR = Q3 - Q1
 outlier_mask = (num_df < (Q1 - 1.5 * IQR)) | (num_df > (Q3 + 1.5 * IQR))
 outlier_counts = outlier_mask.sum().sort_values(ascending=False)
-st.write(outlier_counts)
+print(outlier_counts) #can be seen in terminal output
 
-"""check if there are many values above z score of 3 (another way of detecting outliers)"""
+# not visualized in the app, but also checked if there are many values above z score of 3 (another way of detecting outliers)
 from scipy.stats import zscore
 z_scores = num_df.apply(zscore)
 outliers_z = (abs(z_scores) > 3).sum().sort_values(ascending=False)
-st.write(outliers_z)
+print(outliers_z) #can be seen in terminal output
 
-#How much influence do these outliers have on mean and std when being included or disregarded?
-
+# not visualized in the app, but also checked: How much influence do these outliers have on mean and std when being included or disregarded?
 #without outliers
 clean_df = num_df[~outlier_mask.any(axis=1)]
-
-#st.write mean and std for with outliers vs without outliers and put in pd dataframe
+#mean and std for with outliers vs without outliers and put in pd dataframe
 compare = pd.DataFrame({
     'Mean (all)': num_df.mean(),
     'Mean (no outliers)': clean_df.mean(),
     'Std (all)': num_df.std(),
     'Std (no outliers)': clean_df.std()
 })
-st.write(compare.round(2))
+print(compare.round(2)) #can be seen in terminal output, no drastic change, however, decided to keep them as they may represent real clinical values
 
-"""check for ranges of the heart rate"""
-st.write("Highest heart rate:", X_train['HEARTRTE'].max())
-st.write("Lowest heart rate:", X_train['HEARTRTE'].min())
 
-#check for heartrate: how many values are beyond physiological limits (below 40 or above 180)
-low = (X_train['HEARTRTE'] < 40).sum()
-high = (X_train['HEARTRTE'] > 180).sum()
-st.write("Low (<40):", low, "High (>180):", high)
+st.write("### Missing Data Handling")
+st.write(X_train.isna().sum())
+st.write("""
+- *educ, TOTCHOL, GLUCOSE, CIGPDAY, and BMI have missing values*
+- *Check percentages of missigness and correlations between these variables to decide how to handle them:*
+""")
 
-st.write("Highest SYSBP:", X_train['SYSBP'].max())
-st.write("Lowest SYSBP:", X_train['SYSBP'].min())
+#add table with missingness in percents
+#add correlations between variables
 
-X_train['SYSBP'] = X_train['SYSBP'].clip(lower=70.0, upper=250.0)
+st.write("""
+- Will do imputation as the missingness is less than 5% in each variable*
+- *educ is categroical, therefore, will use mode for imputation*
+- *Missingness of TOTCHOL and GLUCOSE varies based on different features, therefore, consider it MAR.
+MAR should be imputed using model-based imputation after outliers and other missing data are handled
+because TOTCHOL and GLUCOSE depend on them.*
+- *For CIGPDAY and BMI will use median imputation to be more robust against outliers*
+""")
 
-st.write("Highest TOTCHOL:", X_train['TOTCHOL'].max())
-st.write("Lowest TOTCHOL:", X_train['TOTCHOL'].min())
+# mode imputation (educ)
+mode_value = X_train['educ'].mode()[0]
+X_train['educ'] = X_train['educ'].fillna(mode_value)
+X_test['educ'] = X_test['educ'].fillna(mode_value)
 
-X_train['TOTCHOL'] = X_train['TOTCHOL'].clip(lower=70.0, upper=450.0)
+# median imputation (CIGPDAY, BMI)
+median_cigpday = X_train['CIGPDAY'].median() #compute median only using train data to avoid data leakage
+X_train['CIGPDAY'] = X_train['CIGPDAY'].fillna(median_cigpday) #use computed median for both train and test sets
+X_test['CIGPDAY'] = X_test['CIGPDAY'].fillna(median_cigpday)
 
-#MICE Imputation for TOTCHOl / GLUCOSE as they are correlated and higher percentage missing
-# (doing after outlier and other missing values imputation bc totchol/glucose imputation depends on them)
+median_bmi = X_train['BMI'].median()
+X_train['BMI'] = X_train['BMI'].fillna(median_bmi)
+X_test['BMI'] = X_test['BMI'].fillna(median_bmi)
 
-# PART A: FIT and TRANSFORM X_TRAIN 
-# 1. Define the set of columns for the MICE model:
-# Both Imputation Targets (TOTCHOL, GLUCOSE) and all Predictors
-mice_cols = [
-    'TOTCHOL', 'GLUCOSE', 'AGE', 'SEX_Female', 'SYSBP', 'DIABP', 'BMI',
-    'educ', 'CIGPDAY', 'HEARTRTE'
-]
+median_heartrate = X_train['HEARTRTE'].median() #was imputed due to its missingness (1 value) in the test set
+X_train['HEARTRTE'] = X_train['HEARTRTE'].fillna(median_heartrate)
+X_test['HEARTRTE'] = X_test['HEARTRTE'].fillna(median_heartrate)
 
-# Create the temporary DataFrame X_train_temp, preserving the original index
-X_train_temp = X_train[mice_cols].copy() 
 
-# 2. Initialize and FIT the MICE model ONLY on the training data
-# This creates the imputation model (imp) that we will reuse.
-imp = IterativeImputer(max_iter=10, random_state=42)
-X_imputed_train_array = imp.fit_transform(X_train_temp) 
-
-# 3. CORRECTED STEP: Convert back to DataFrame using the original index
+# MICE Imputation (TOTCHOl, GLUCOSE) 
+mice_cols = ['AGE', 'SEX', 'educ', 'TOTCHOL', 'SYSBP', 'DIABP',
+'DIABETES', 'HEARTRTE', 'GLUCOSE', 'CURSMOKE', 'CIGPDAY', 'BMI']
+X_train_temp = X_train[mice_cols].copy() #create the temporary DataFrame X_train_temp, preserving the original index
+imp = IterativeImputer(max_iter=10, random_state=42) #create the imputation model (imp) that we will reuse
+X_imputed_train_array = imp.fit_transform(X_train_temp) #fit and transform only on train data 
 X_imputed_train = pd.DataFrame(
     X_imputed_train_array, 
     index=X_train_temp.index, # Index Alignment
     columns=mice_cols
-)
-
-# 4. Update the original DataFrame (X_train)
-X_train['TOTCHOL'] = X_imputed_train['TOTCHOL']
+) #convert back to DataFrame using the original index
+X_train['TOTCHOL'] = X_imputed_train['TOTCHOL'] #update the original DataFrame (X_train)
 X_train['GLUCOSE'] = X_imputed_train['GLUCOSE']
 
-print("X_train successfully imputed.")
-
-# PART B: TRANSFORM X_TEST (LEAKAGE-FREE)
-
-# 1. Create the temporary DataFrame X_test_temp
-X_test_temp = X_test[mice_cols].copy() 
-
-# 2. TRANSFORM the test set (using the SAME 'imp' model fitted on X_train)
-X_imputed_test_array = imp.transform(X_test_temp) # No 'fit' here!
-
-# 3. Convert back to DataFrame using the original index
+X_test_temp = X_test[mice_cols].copy() #create the temporary DataFrame X_test_temp
+X_imputed_test_array = imp.transform(X_test_temp) # No 'fit' here! Only transform the test set (using the SAME 'imp' model fitted on X_train)
 X_imputed_test = pd.DataFrame(
     X_imputed_test_array, 
     index=X_test_temp.index, # Index Alignment
     columns=mice_cols
-)
-
-# 4. Update the original DataFrame (X_test)
-X_test['TOTCHOL'] = X_imputed_test['TOTCHOL']
+) #convert back to DataFrame using the original index
+X_test['TOTCHOL'] = X_imputed_test['TOTCHOL'] #update the original DataFrame (X_test)
 X_test['GLUCOSE'] = X_imputed_test['GLUCOSE']
 
+st.write("Check for the missing data again after imputation (there should be no missing values):")
+st.write("Train set:")
 st.write(X_train.isna().sum())
+st.write("Test set:")
 st.write(X_test.isna().sum())
+st.write("""
+- *X_train and X_test are now fully imputed and cleaned for further modeling*
+""")
 
-# X_train and X_test are now fully imputed and cleaned for further modeling.
-# Now transformations against skewness can be applied if needed.
 
+#add also checking distributions before and after imputation - should not change much
+
+
+st.write("### Apply transformations against skewness")
+st.write("Check skewness (calculated on X_train):")
 skewness_results = X_train[numerical].apply(lambda x: skew(x.dropna())).sort_values(ascending=False)
-
-st.write("--- Skewness Check (Calculated on X_train) ---")
 st.write(skewness_results)
-
-# From the skewness results we can identify these variables as highly skewed:
+st.write("""
+- *From the skewness results we can identify these variables as highly skewed: GLUCOSE, CIGPDAY, SYSBP, BMI*
+- *Log transformation will be applied to them*
+- *Check distributions after log tranformation:*
+""")
 log_transform_cols = ['GLUCOSE', 'CIGPDAY', 'SYSBP', 'BMI']
-
-# --- Transform X_train ---
 for col in log_transform_cols:
-    # Overwrite the original column with the transformed values
-    X_train[col] = np.log1p(X_train[col])
-
-# --- Transform X_test ---
-# Apply the EXACT SAME transformation to X_test (leakage-free)
+    X_train[col] = np.log1p(X_train[col]) #transform X_train
 for col in log_transform_cols:
-    # Overwrite the original column with the transformed values
-    X_test[col] = np.log1p(X_test[col])
-
-# now we have imputed and transformed datasets X_train and X_test ready for scaling
-
-# since we already handled outliers we can use standard scaling
-
-# 1. Initialize the Scaler
-scaler = StandardScaler()
-
-# 2. FIT the Scaler ONLY on the X_train data (Leakage Prevention)
-# This calculates the mean and standard deviation of X_train
-scaler.fit(X_train[numerical])
-
-# 3. TRANSFORM the X_train data
-# X_train is updated in place
-X_train[numerical] = scaler.transform(X_train[numerical])
-
-# 4. TRANSFORM the X_test data (using the X_train fitted scaler)
-# X_test is updated in place
-X_test[numerical] = scaler.transform(X_test[numerical])
+    X_test[col] = np.log1p(X_test[col]) #transform X_train
+# make a on/off button to select train/test set for visualization
+on = st.toggle('Turn on to see test set.')
+if on:
+    dataset = X_test
+    dataset_name = "X_test set"
+else:
+    dataset = X_train
+    dataset_name = "X_train set"
+selectedVariable = st.selectbox("Select variable to plot:", log_transform_cols) #select a variable from the columns that were transformed
+render_plot(dataset[selectedVariable].hist, f'{dataset_name}', bins=30, alpha=0.4, edgecolor='black', label=selectedVariable)
+st.write("""
+- *Distributions are symmetric, therefore, the transformation worked*
+""")
 
 
+st.write("### One Hot Encoding for SEX variable")
+st.write("""*As the SEX variable was encoded with 1 and 2, we map original value 1 (Male) to 0
+and value 2 (Female) to 1.*""")
+# create a new binary column
+X_train['SEX_Female'] = X_train['SEX'].replace({
+    1: 0, # map original value 1 (Male) to 0
+    2: 1  # map original value 2 (Female) to 1
+})
+X_test['SEX_Female'] = X_test['SEX'].replace({
+    1: 0, # map original value 1 (Male) to 0
+    2: 1  # map original value 2 (Female) to 1
+})
+st.write(f'*Values of new **SEX_Female variable** after encoding: :blue-background[{set(X_train.SEX_Female)}]*')
+X_train = X_train.drop('SEX', axis=1) #drop original SEX variable
+X_test = X_test.drop('SEX', axis=1) #drop original SEX variable
 
-st.header("4. Visualization of the Final Clean Data") #visualization of our cleaned subset
-#see if i can do scaling, is_female and creating 1 label at the end and maybe feature selection
-st.header("5. ML Models Training and Prediction Evaluation") #4 algorithms, evaluation also includes CV and feature importance
-st.header("6. Comparing ML Models") #selecting the best model out of 4 fine-tuned models
-st.header("7. Conclusion")
-st.header("8. References") #include genAI statement
 
-"""Final Data exploration (distributions and descriptive statistics)"""
+st.write("### Scaling")
+st.write("""*Since we have already handled outliers, we can use standard scaling to prepare data for modeling.*""")
+scaler = StandardScaler() #since we already handled outliers we can use standard scaling
+scaler.fit(X_train[numerical]) #fit only on train data (leakage prevention), calculating mean and standard deviation of X_train
+X_train[numerical] = scaler.transform(X_train[numerical]) #transform train data
+X_test[numerical] = scaler.transform(X_test[numerical]) #transform test data
 
-# Make a on/off button to select train/test set
+
+st.header("4. Visualization of the Final Data") #visualization of our cleaned subset
+
+st.write("### Final Data Variable Distributions")
+# make a on/off button to select train/test set
 on = st.toggle('Turn on to see test set')
 if on:
     dataset = X_test
     dataset_name = "X_test set"
-    
 else:
     dataset = X_train
     dataset_name = "X_train set"
-
-# 1. Select a variable from the columns of the training set (X_train)
-
 selectedVariable = st.selectbox("Select variable to plot:", dataset.columns)
-# 2. Plot the histogram using the training data for the selected variable
 render_plot(dataset[selectedVariable].hist, f'{dataset_name}', bins=30, alpha=0.4, edgecolor='black', label=selectedVariable)
 
-st.write(X_train.describe())
 
+st.write("")
 # Print the size and outcome distribution of the training set
 
-st.write(f"Total Training Samples: {X_train.shape[0]}")
+st.write(f"Total training samples (X_train): :blue-background[{X_train.shape[0]}]")
 outcome_distribution = y_train.value_counts(normalize=True) * 100
-st.write("\nTarget Disease Distribution (y_train):")
+st.write("Training target disease distribution (y_train):")
 st.write(outcome_distribution.round(2))
+st.write("""
+- *The target distribution indicates imbalanced dataset, thus, it should be kept in mind during the ML models training.*
+""")
 
 st.subheader("Categorical Feature Distributions")
 
 # Use a visualization (example using Streamlit/render_plot)
+
 render_plot(y_train.value_counts().plot, kind='pie', autopct='%1.1f%%', 
             title='Target Disease Distribution (y_train)')
 
@@ -490,6 +456,12 @@ render_plot(X_train['SEX_Female'].value_counts().plot,
 "import seaborn as sns"
 "sns.pairplot(data, hue = 'species');"
 ##############################################################################
+
+
+st.header("5. ML Models Training and Prediction Evaluation") #4 algorithms, evaluation also includes CV and feature importance
+st.header("6. Comparing ML Models") #selecting the best model out of 4 fine-tuned models
+st.header("7. Conclusion")
+st.header("8. References") #include genAI statement
 
 
 st.write('## Classification: Machine Learning for predicting CVD from baseline patient characteristics')
