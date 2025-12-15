@@ -104,87 +104,50 @@ st.write(data_heart.columns)
 st.write(f'Number of all variables: :blue-background[{len(data_heart.columns)}]')
 st.write("""
 - *To answer the RQ, the **subset will be created** in 2 steps:*
-    1. *Filtering:*
+    1. ***Filtering:***
         - *Keep **only Period 1 records** for each participant to define baseline 'at-risk' population*
-        - ***Filter out participants with prevalent disease** (PREVCHD=1, PREVSTRK=1) at Period 1 to ensure we are keeping only the population 'at risk' for a first event
-    2. *Including only the variables of interest:*
+        - ***Filter out participants with prevalent disease** (PREVCHD=1, PREVSTRK=1) at Period 1 to ensure we are keeping only the population 'at risk' for a first event*
+        - ***Filter out the patients that never developed a disease and died during the follow-up** as if they died we cannot assume that they would have not developed a disease later*
+    2. ***Including** only 14 **variables of interest:***
         - *Demographics: **SEX, AGE, educ***
-    - *Clinical health data: **TOTCHOL, SYSBP, DIABP, DIABETES, HEARTRTE,
-    GLUCOSE ***
-    - *Lifestyle: **CURSMOKE, CIGPDAY, BMI, ***
-    - *Occurrence of cardiovascular diseases:
-    **ANYCHD, STROKE***
-        - PREVCHD, PREVSTRK, PREVHYP?
-        - TIME?
-        - PERIOD?
-        - DEATH?
-        - HYPERTEN?
-        - TIMECHD?
-        - TIMESTRK?
-        - TIMEDTH?
-        - TIMEHYP?
-    - *The following variables will therefore be **excluded:***
-        - ***RANDID**: does not contain any valuable information (later!)*
+        - *Clinical health data: **TOTCHOL, SYSBP, DIABP, DIABETES, HEARTRTE, GLUCOSE***
+        - *Lifestyle: **CURSMOKE, CIGPDAY, BMI***
+        - *Occurrence of cardiovascular diseases: **ANYCHD, STROKE***
+    - *The following 25 variables will therefore be **excluded:***
+        - ***RANDID, PERIOD, PREVCHD, PREVSTRK, TIME, DEATH**: do not contain any valuable information as the data were already filtered*
         - ***ANGINA, PREVAP, TIMEAP**: not looking into that disease*
         - ***HOSPMI, MI_FCHD, CVD, PREVMI, TIMECVD, TIMEMIFC, TIMEMI**: included in other variables that will be left in the subset (ANYCHD, STROKE, PREVCHD, PREVSTRK, TIMECHD, TIMESTRK)*
         - ***HDLC, LDLC**: only available in Period 3 while we want to look into the baseline (Period 1)*
-        - ***BPMEDS**: contain information ?*
+        - ***PREVHYP, HYPERTEN, TIMECHD, TIMESTRK, TIMEDTH, TIMEHYP, BPMEDS**: contain information that would create data leakage when using ML*
 """)
 
+# copy raw dataset to a new subset variable with a short name to make changes in a new variable and make it easier to call it
+dhs = data_heart.copy()
+# step 1: filtering
+dhs = dhs.loc[dhs['PERIOD'] == 1].copy() #keep only period 1
+dhs = dhs.loc[
+    (dhs['PREVCHD'] == 0) & (dhs['PREVSTRK'] == 0)
+    ].copy() #filter out participants with prevalent disease
+dhs = dhs.loc[~((dhs['ANYCHD'] == 0) & (dhs['DEATH'] == 1))] #filter out deceased participants with no disease
+dhs = dhs.loc[~((dhs['STROKE'] == 0) & (dhs['DEATH'] == 1))] 
+# step 2: keeping variables of interest
+dhs = dhs[['SEX', 'AGE', 'educ', 'TOTCHOL', 'SYSBP', 'DIABP', 'DIABETES',
+'HEARTRTE', 'GLUCOSE', 'CURSMOKE', 'CIGPDAY', 'BMI', 'ANYCHD', 'STROKE']]
 
-data_heart_subset = data_heart.drop(columns = ['RANDID', 'ANGINA', 'PREVAP', 'TIMEAP', 'HOSPMI', 'MI_FCHD', 'CVD', 'PREVMI', 'TIMECVD', 'TIMEMIFC', 'TIMEMI', 'HDLC', 'LDLC', 'BPMEDS'])
-# rename subset to make it easier to call it
-dhs = data_heart_subset
 
-st.write("Created Subset Preview:")
+st.write("### Created Subset Preview:")
 dhs
 st.write(f'**Shape** (n of rows and columns) of the subset: :blue-background[{dhs.shape}]')
 
-st.write("Created Subset Variables:")
+st.write("### Created Subset Variables:")
 """check all columns of the created subset"""
 st.write(dhs.columns)
 
-st.write("""
-- *To further reduce our subset, it will be filtered based on:
-    - **
-""")
+# not visualized in the app, but the subset descriptive statistics were also checked
+print(dhs.describe()) #it can be seen in the terminal output
 
-
-# 1. Keep only Period 1 .
-dhs = dhs.loc[dhs['PERIOD'] == 1].copy()
-
-# 2. Filter out participants with prevalent disease (PREVCHD=1 or PREVSTRK=1) at Period 1.
-# This ensures we are left with the population 'at risk' for a first event.
-dhs = dhs.loc[
-    (dhs['PREVCHD'] == 0) & (dhs['PREVSTRK'] == 0)
-].copy()
-
-# 3. Calculate the Incident Target Variable.
-# For this 'at-risk' group, ANYCHD=1 or STROKE=1 in the Period 1 record indicates an
-# INCIDENT event after Period 1, because the 1 is filled in each period
-dhs['targetDisease'] = (
-    (dhs['ANYCHD'] == 1) | (dhs['STROKE'] == 1)
-).astype(int)
-
-"""--> Missing values have to be handled"""
-"""--> No duplicates to handle
-Creating a subset to answer our RQs:
-check columns of the created subset
-RANDID: not interesting
-For the full subset:
-SYSBP, heartrate: right skewed.
-BMI, TOTCHOL, HDLC, LDLC: very slightly right skewed, but 12k values & mean & median close to each other → symmetric
-Other: approx. normally distributed
-Interestingly sex was encoded with 1 and 2 --> be careful
-"""
 
 st.header("3. Exploratory Data Analysis (EDA), Cleaning, and Feature Engineering") #exploration of our subset and cleaning
-st.header("4. Visualization of the Final Clean Data") #visualization of our cleaned subset
-#see if i can do scaling, is_female and creating 1 label at the end and maybe feature selection
-st.header("5. ML Models Training and Prediction Evaluation") #4 algorithms, evaluation also includes CV and feature importance
-st.header("6. Comparing ML Models") #selecting the best model out of 4 fine-tuned models
-st.header("7. Conclusion")
-st.header("8. References") #include genAI statement
 
 # define function for plotting (for all plots to be formatted in a same way)
 def render_plot(obj, title="", *args, **kwargs):
@@ -231,26 +194,19 @@ def render_plot(obj, title="", *args, **kwargs):
     return fig
 
 
-
-"""Data exploration (distributions and descriptive statistics)"""
+st.write("### Subset Variable Distributions")
 selectedVariable = st.selectbox("Select variable to plot:", dhs.select_dtypes(include='number').columns)
-
 render_plot(dhs[selectedVariable].hist, bins=30, alpha=0.4, edgecolor='black', label=selectedVariable)
 
-
-"""plot distributions of variables that are relevant to describe population characteristics at baseline"""
-
+st.write("""
+- *More females*
+- *Age has some dips*
+- *educ, TOTCHOL, SYSBP, HEARTRTE, GLUCOSE, CIGPDAY, BMI seem to be right skwewed*
+- *DIABP, CURSMOKE: approximately symmetric*
+- *DIABETES, ANYCHD, STROKE: no event/comorbidity is more represented*
+""")
 render_plot(dhs.hist(figsize=(15, 10), bins=30, edgecolor='black'))
 
-
-"""--> SYSBP, TOTCHOL, BMI, HEARTRTE, GLUCOSE seem to be right skwewed.
-
---> Other look normal for what they are
-
---> Sex was encoded with 1 and 2 - keep in mind
-
---> Age has some dips?
-"""
 
 """One Hot Encoding for SEX variable"""
 # Create the new binary column
@@ -260,25 +216,24 @@ dhs['SEX_Female'] = dhs['SEX'].replace({
 })
 
 
-# Drop the patients that never developed chd or stroke and that died during the follow-up because if they died we cannot say that they would have not developed a disease
-dhs = dhs.loc[~((dhs['targetDisease'] == 0) & (dhs['DEATH'] == 1))]
+#feature engineering
 
+# 3. Calculate the Incident Target Variable.
+# For this 'at-risk' group, ANYCHD=1 or STROKE=1 in the Period 1 record indicates an
+# INCIDENT event after Period 1, because the 1 is filled in each period
+dhs['targetDisease'] = (
+    (dhs['ANYCHD'] == 1) | (dhs['STROKE'] == 1)
+).astype(int)
+
+"""--> Missing values have to be handled"""
+"""--> No duplicates to handle
+"""
 
 # Drop the original sex column, original target columns, and other columns that are not needed
 dhs = dhs.drop('SEX', axis=1)
 dhs = dhs.drop('ANYCHD', axis=1)
 dhs = dhs.drop('STROKE', axis=1)
-dhs = dhs.drop('PREVCHD', axis=1)
-dhs = dhs.drop('PREVSTRK', axis=1)
-dhs = dhs.drop('TIME', axis=1)
-dhs = dhs.drop('PERIOD', axis=1)
-dhs = dhs.drop('HYPERTEN', axis=1)
-dhs = dhs.drop('TIMEHYP', axis=1)
 dhs = dhs.drop('DEATH', axis=1)
-dhs = dhs.drop('TIMECHD', axis=1)
-dhs = dhs.drop('TIMESTRK', axis=1)
-dhs = dhs.drop('TIMEDTH', axis=1)
-
 
 """##Outlier detection and handling, Impute only Period 1, and only training set to prevent data leakage"""
 
@@ -473,6 +428,12 @@ X_train[numerical] = scaler.transform(X_train[numerical])
 X_test[numerical] = scaler.transform(X_test[numerical])
 
 
+st.header("4. Visualization of the Final Clean Data") #visualization of our cleaned subset
+#see if i can do scaling, is_female and creating 1 label at the end and maybe feature selection
+st.header("5. ML Models Training and Prediction Evaluation") #4 algorithms, evaluation also includes CV and feature importance
+st.header("6. Comparing ML Models") #selecting the best model out of 4 fine-tuned models
+st.header("7. Conclusion")
+st.header("8. References") #include genAI statement
 
 """Final Data exploration (distributions and descriptive statistics)"""
 
