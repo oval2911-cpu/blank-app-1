@@ -426,52 +426,29 @@ else:
 selectedVariable = st.selectbox("Select variable to plot:", dataset.columns)
 render_plot(dataset[selectedVariable].hist, f'{dataset_name}', bins=30, alpha=0.4, edgecolor='black', label=selectedVariable)
 
-
-st.write("")
-# Print the size and outcome distribution of the training set
-
 st.write(f"Total training samples (X_train): :blue-background[{X_train.shape[0]}]")
 outcome_distribution = y_train.value_counts(normalize=True) * 100
-st.write("Training target disease distribution (y_train):")
-st.write(outcome_distribution.round(2))
+
+print(outcome_distribution.round(2)) #not visualized, only in terminal output
+render_plot(y_train.value_counts().plot, kind='pie', autopct='%1.1f%%', 
+            title='Training Target Disease Distribution (y_train)')
 st.write("""
 - *The target distribution indicates imbalanced dataset, thus, it should be kept in mind during the ML models training.*
 """)
 
-st.subheader("Categorical Feature Distributions")
-
-# Use a visualization (example using Streamlit/render_plot)
-
-render_plot(y_train.value_counts().plot, kind='pie', autopct='%1.1f%%', 
-            title='Target Disease Distribution (y_train)')
-
-# 2. Gender Distribution (Bar Chart)
-st.markdown("##### SEX_Female Counts (0=Male, 1=Female)")
-render_plot(X_train['SEX_Female'].value_counts().plot, 
-            kind='bar', 
-            alpha=0.8, 
-            edgecolor='black')
-
-
-"import seaborn as sns"
-"sns.pairplot(data, hue = 'species');"
-##############################################################################
-
 
 st.header("5. ML Models Training and Prediction Evaluation") #4 algorithms, evaluation also includes CV and feature importance
-st.header("6. Comparing ML Models") #selecting the best model out of 4 fine-tuned models
-st.header("7. Conclusion")
-st.header("8. References") #include genAI statement
+
+st.write('### *Predicting CVD from baseline patient characteristics*')
 
 
-st.write('## Classification: Machine Learning for predicting CVD from baseline patient characteristics')
-
-# interactive sidebar to select cross-validation and number of folds
-cv = st.sidebar.checkbox("Cross-validation",
+# interactive button to select cross-validation and number of folds
+cv = st.checkbox("Cross-validation",
                          value=True)
-cv_value = st.sidebar.selectbox("Select number of folds for cross-validation:",
+cv_value = st.selectbox("Select number of folds for cross-validation:",
                                 [5, 10])
     
+
 # model evaluation function (so that it can be reused for all models)
 def model_evaluation(model_name, model, prediction):
     # accuracy and classification report
@@ -536,19 +513,16 @@ def model_evaluation(model_name, model, prediction):
             st.pyplot(fig_cv)
 
 
-# Logistic regression
+
 st.write('### Algorithm 1: Logistic regression')
 model_name = "Logistic regression"
-
 # specify parameters 
 class_weight_lr = st.selectbox('Select class_weight parameter:',
                                ['balanced', None], #the first value is always a default here and in the following select boxes unless user specifies it
                                key = 'class_weight_lr') #added to avoid duplicated class_weight select boxes (bc use them below as well)
 penalty_lr = st.selectbox('Select penalty parameter (lbfgs solver by default):',
                           ['l2', None]) #lbfgs solver by default can only have these penalties
-
 # TRAINING AND PREDICTION
-
 # define logistic regression (lr) classifier
 model_lr = LogisticRegression(max_iter=1000,
                               class_weight = class_weight_lr,
@@ -557,14 +531,12 @@ model_lr = LogisticRegression(max_iter=1000,
 model_lr = model_lr.fit(X_train, y_train)
 # predict using test data
 prediction_lr = model_lr.predict(X_test)
-
 # EVALUATION
 model_evaluation(model_name, model_lr, prediction_lr)
 
-# Decision Tree
+
 st.write('### Algorithm 2: Decision Tree')
 model_name = "Decision Tree"
-
 # specify parameters 
 class_weight_dt = st.selectbox('Select class_weight parameter:',
                                ['balanced', None],
@@ -583,9 +555,7 @@ min_samples_leaf_dt = st.slider('Specify minimum number ' \
                                 max_value = X_train.shape[0] // 2, #this is a max possible value for that (half of number of samples)
                                 value = 20, #chosen as default as the best found
                                 key = 'min_samples_leaf_dt')
-
 # TRAINING AND PREDICTION
-
 # define decision tree (dt) classifier
 model_dt = tree.DecisionTreeClassifier(random_state=42,
                                        max_depth=max_depth_dt,
@@ -596,14 +566,12 @@ model_dt = tree.DecisionTreeClassifier(random_state=42,
 model_dt = model_dt.fit(X_train, y_train)
 # predict using test data
 prediction_dt = model_dt.predict(X_test)
-
 # EVALUATION
 model_evaluation(model_name, model_dt, prediction_dt)
 
-# Random Forest
+
 st.write('### Algorithm 3: Random Forest')
 model_name = "Random Forest"
-
 # specify parameters 
 class_weight_rf = st.selectbox('Select class_weight parameter:',
                                ['balanced', 'balanced_subsample', None],
@@ -620,10 +588,8 @@ max_depth_rf = st.slider('Specify maximum tree depth:',
 min_samples_leaf_rf = st.slider('Specify minimum number ' \
                                 'of samples in a leaf node ' \
                                 'after splitting to avoid overfitting:', 1, X_train.shape[0] // 2, 20,
-                                key = 'min_samples_leaf_rf')
-             
+                                key = 'min_samples_leaf_rf')        
 # TRAINING AND PREDICTION
-
 # define random forest classifier
 model_rf = RandomForestClassifier(n_estimators = n_estimators_rf,
                                   max_depth=max_depth_rf,
@@ -634,14 +600,12 @@ model_rf = RandomForestClassifier(n_estimators = n_estimators_rf,
 model_rf = model_rf.fit(X_train, y_train)
 # predict using test data
 prediction_rf = model_rf.predict(X_test)
-
 # EVALUATION
 model_evaluation(model_name, model_rf, prediction_rf)
 
-# KNN
+
 st.write('### Algorithm 4: KNN')
 model_name = "KNN"
-
 # specify parameters
 n_neighbors_KNN = st.slider('Select number of neighbors:',
                             min_value = 1, #can lead to overfitting
@@ -649,10 +613,8 @@ n_neighbors_KNN = st.slider('Select number of neighbors:',
                             value = int((X_train.shape[0])**0.5), #chosen as default as the best found 
                             step = 2) #only odd numbers to avoid ties in a classification majority vote
 weights_KNN = st.selectbox('Select weight function:', 
-                           ['uniform', 'distance', None])
-        
+                           ['uniform', 'distance', None]) 
 # TRAINING AND PREDICTION
-
 # define KNN classifier
 model_KNN = KNeighborsClassifier(n_neighbors = n_neighbors_KNN,
                                  weights = weights_KNN,
@@ -663,10 +625,12 @@ model_KNN = KNeighborsClassifier(n_neighbors = n_neighbors_KNN,
 model_KNN = model_KNN.fit(X_train, y_train)
 # predict using test data
 prediction_KNN = model_KNN.predict(X_test)
-
 # EVALUATION
 model_evaluation(model_name, model_KNN, prediction_KNN)
 
+
+
+st.header("6. Comparing ML Models") #selecting the best model out of 4 fine-tuned models
 #table with best fine-tuned models comparison
 # and explanation why we think which one is better
 "Algorithm choice and what to mention when comparing them:"
@@ -676,13 +640,14 @@ model_evaluation(model_name, model_KNN, prediction_KNN)
 "Or perhaps some algorithms just take too much time to train,"
 "even with todays computational power"
 
-
-st.write('## Conclusion')
+st.header("7. Conclusion")
 
 """Limitations: 
 - Patients were followed-up in incomparable timespans (e.g. 1 patient 2 years, another 6 years) --> can bias predictions
 - Maybe should have also feature engineered blood pressure"""
 """Answer on RQ based on ML, feature importance"""
+
+st.header("8. References") #include genAI statement
 
 
 st.markdown("*Streamlit* is **really** ***cool***.")
