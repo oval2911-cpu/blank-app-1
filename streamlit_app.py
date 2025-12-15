@@ -51,7 +51,7 @@ with st.expander("1. Background and Research Question"):
         - Lifestyle (smoking, BMI)
         - Occurrence of cardiovascular diseases (stroke, coronary heart disease (CHD))""")
 
-    st.write("### Research Question:")
+    st.write("### Research Question (RQ):")
     st.write("**To what extent** can **baseline patient characteristics from the Framingham dataset** be used by machine-learning (ML) models to **reliably predict the occurrence of major cardiovascular events (CVD)** (stroke, CHD, myocardial infarction (MI), and coronary insufficiency)?")
 
     st.write("### Previous Research Findings:")
@@ -76,7 +76,8 @@ with st.expander("2. Data Preparation"):
     st.write(data_heart.describe())
     st.write("""
     - ***RANDID variable is not interesting**, therefore, it **will be removed** in the following steps.*
-    - *Interestingly, **sex was encoded with 1 and 2**. As it **introduces artificial ordering** and numerical meaning, it may **bias ML model** learning and interpretation. Therefore, we should **be careful** and encode it to 0 and 1 before applying ML, to preven learning hierachy*
+    - *Interestingly, **sex was encoded with 1 and 2**. It **introduces artificial ordering** and numerical meaning and may **bias ML model** learning and interpretation.
+             Therefore, we should **be careful** and encode it with 0 and 1.*
     """)
     # not visualized in the app, but the raw dataset was also checked for missing values and duplicates
     print(data_heart.isna().sum()) #in the terminal output it can be seen that there are some missing values that have to be checked for and handled
@@ -88,20 +89,20 @@ with st.expander("2. Data Preparation"):
     st.write("""
     - *To answer the RQ, the **subset will be created** in 2 steps:*
         1. ***Filtering:***
-            - *Keep **only Period 1 records** for each participant to define baseline 'at-risk' population*
-            - ***Filter out participants with prevalent disease** (PREVCHD=1, PREVSTRK=1) at Period 1 to ensure we are keeping only the population 'at risk' for a first event*
-            - ***Filter out the patients that never developed a disease and died during the follow-up** as if they died we cannot assume that they would have not developed a disease later*
+            - *Keep **only Period 1 records** for each participant to define baseline 'at-risk' population.*
+            - ***Filter out participants with prevalent disease** (PREVCHD=1, PREVSTRK=1) at Period 1 to ensure we are keeping only the population 'at risk' for a first event.*
+            - ***Exclude participants who died during follow-up without a recorded cardiovascular event**, as their disease status beyond death cannot be determined.*
         2. ***Including** only 14 **variables of interest:***
             - *Demographics: **SEX, AGE, educ***
             - *Clinical health data: **TOTCHOL, SYSBP, DIABP, DIABETES, HEARTRTE, GLUCOSE***
             - *Lifestyle: **CURSMOKE, CIGPDAY, BMI***
             - *Occurrence of cardiovascular diseases: **ANYCHD, STROKE***
         - *The following 25 variables will therefore be **excluded:***
-            - ***RANDID, PERIOD, PREVCHD, PREVSTRK, TIME, DEATH**: do not contain any valuable information as the data were already filtered*
-            - ***ANGINA, PREVAP, TIMEAP**: not looking into that disease*
-            - ***HOSPMI, MI_FCHD, CVD, PREVMI, TIMECVD, TIMEMIFC, TIMEMI**: included in other variables that will be left in the subset (ANYCHD, STROKE, PREVCHD, PREVSTRK, TIMECHD, TIMESTRK)*
-            - ***HDLC, LDLC**: only available in Period 3 while we want to look into the baseline (Period 1)*
-            - ***PREVHYP, HYPERTEN, TIMECHD, TIMESTRK, TIMEDTH, TIMEHYP, BPMEDS**: contain information that would create data leakage when using ML*
+            - ***RANDID, PERIOD, PREVCHD, PREVSTRK, TIME, DEATH**: do not contain any valuable information as the data were already filtered.*
+            - ***ANGINA, PREVAP, TIMEAP**: angina pectoris was outside the scope of the CVD outcomes investigated.*
+            - ***HOSPMI, MI_FCHD, CVD, PREVMI, TIMECVD, TIMEMIFC, TIMEMI**: the information they contain is captured by other retained variables (ANYCHD, STROKE, PREVCHD, PREVSTRK, TIMECHD, TIMESTRK).*
+            - ***HDLC, LDLC**: lack of baseline (Period 1) measurements.*
+            - ***PREVHYP, HYPERTEN, TIMECHD, TIMESTRK, TIMEDTH, TIMEHYP, BPMEDS**: contain post-baseline or outcome-related information that would introduce data leakage.*
     """)
 
     # copy raw dataset to a new subset variable with a short name to make changes in a new variable and make it easier to call it
@@ -191,11 +192,11 @@ with st.expander("3. Exploratory Data Analysis (EDA), Cleaning, and Feature Engi
 
     st.write("### Create 1 Target Variable")
     st.write("""
-    - *Before data cleaning, the data should be split into train and test to avoid data leakage.
-    Thus, the target variable is required for which we currently have 2 variables (ANYCHD, STROKE).
-    In the Framingham dataset, ANYCHD=1 and STROKE=1 in the Period 1 record indicate that the
-    event happened at any time during the follow-up after Period 1.
-    Therefore, we can create one target variable for binary classification that would allow us to do train/test split.*
+    **Before data pre-processing**, the data should be **split into train and test sets** to avoid data leakage.
+    To enable this and **formulate the problem as a binary classification** task, a **single target variable has to be defined** by combining
+    2 CVD event variables (ANYCHD, STROKE). In the Framingham dataset, **ANYCHD=1 and STROKE=1** in the Period 1 record **indicate that the
+    event happened at any time during the follow-up** after Period 1.
+    Therefore, we **can create one target variable** for binary classification that would allow us to do train/test split.
     """)
     dhs['Disease'] = (
         (dhs['ANYCHD'] == 1) | (dhs['STROKE'] == 1)
@@ -224,18 +225,18 @@ with st.expander("3. Exploratory Data Analysis (EDA), Cleaning, and Feature Engi
 
     rawX_train = X_train.copy() #keep a copy of raw X_train for later visualization comparison
     rawX_test = X_test.copy() #keep a copy of raw X_test for later visualization comparison
-    """Now on this new dataset, with a target variable, we can proceed to cleaning"""
+    """With the target variable defined, the **dataset is ready for subsequent data cleaning and preprocessing**."""
 
 
     st.write("### Outlier Detection and Handling")
-    st.write("It is important to only act on Training Set, and only use baseline features to prevent data leakage.")
-    st.write("A quick boxplot gives us an overview over the outliers of our data:")
+    st.write("It is important to only act on the training set, and only use baseline features to prevent data leakage.")
+    st.write("A boxplot provides an overview over the outliers of the data:")
     render_plot(sns.boxplot, data=X_train[numerical], orient='h')
     st.write("""
-    - *Most of the outliers are on the right hand side due to skewness*
-    - *Age has no outliers*
-    - *Outermost physiological limits are: TOTCHOL (50-500 mg/dL), SYSBP (40-350 mmHg), GLUCOSE (20-1000 mg/dL)*
-    - *Comparing those limits to our outliers, all are theoretically possible due to extreme medical conditions, therefore, decided to keep them*
+    - *Most of the outliers are on the right hand side due to skewness.*
+    - *Age has no outliers.*
+    - *Outermost physiological limits are: TOTCHOL (50-500 mg/dL), SYSBP (40-350 mmHg), GLUCOSE (20-1000 mg/dL).*
+    - *Comparing those limits to our outliers, all are theoretically possible due to extreme medical conditions, therefore, decided to keep them.*
     """)
 
     # not visualized in the app, but also checked if there are many values outside whiskers (1.5*IQR)
@@ -272,45 +273,40 @@ with st.expander("3. Exploratory Data Analysis (EDA), Cleaning, and Feature Engi
     })
     )
     st.write("""
-    - *5 Variables: educ, TOTCHOL, GLUCOSE, CIGPDAY, and BMI have missing values*
-    """)
-    st.write("""
-    - *GLUCOSE has >5% missing, which automatically makes it a candidate for model based imputation*
+    - *5 Variables: educ, TOTCHOL, GLUCOSE, CIGPDAY, and BMI have missing values.*
+    - *GLUCOSE has >5% missing, which automatically makes it a candidate for model-based imputation.*
     """)
 
     st.write("""Another visualization of missing data is the missingno matrix, which shows percentage and absolute number of present data:""")
     render_plot(msno.bar(X_train).figure)
 
-    st.write("""GLUCOSE will be model based imputed because of its high missingness.
-            Another reason for model based imputation is if type of missingness is MAR (Missing at Random)
-            
-    - *To check if variables are correlated with missingness of GLUCOSE and TOTCHOL, correlation heatmap and missingno heatmap are plotted below*
+    st.write("""
+             - *GLUCOSE will be model-based imputed due to its high missingness.*
+             """)
+    st.write("""
+             Another reason for model based imputation is if type of missingness is missing at random (MAR).  
+             To check if variables are correlated with missingness of GLUCOSE and TOTCHOL, correlation heatmap and missingno heatmap are plotted below:*
     """)
 
     #add correlations between variables
     render_plot(sns.heatmap(X_train.corr(), annot=True, cmap='coolwarm', fmt='.2f', annot_kws={"size": 8}))
 
     st.write("""
-    Missingno heatmap relates missingness of variables to each other.""")
+    Missingno heatmap relates missingness of variables to each other:""")
 
     render_plot(msno.heatmap(X_train).figure)
 
     st.write("""
-    - *You can see that TOTCHOL has slight correlations with missingness in BMI and GLUCOSE*
-    - *This makes it a candidate for model based imputation as well, as its missingness may depend on other variables*""")
-
-
-    #render_plot(sns.pairplot(X_train[['AGE','TOTCHOL','SYSBP','DIABP','GLUCOSE','BMI','HEARTRTE']],corner=True,diag_kind='hist').fig)
-
-
-    #st.write("""
-    #- *From the correlation heatmap we can see that TOTCHOL is MAR, and should thus also be model based imputed.*
-    #""")
+    - *It can be seen that TOTCHOL has slight correlations with missingness in BMI and GLUCOSE.*
+    - *This makes it a candidate for model based imputation as well, as its missingness may depend on other variables.*""")
 
     st.write("""
-    - *For all other, as the missingness is less than 5% in each variable, we will do simple imputation*
-    - *educ is categorical, therefore, will use mode for imputation*
-    - *For CIGPDAY and BMI will use median imputation to be more robust against outliers*
+    We will use MICE (Multiple Imputation by Chained Equations) for imputation of TOTCHOL and GLUCOSE.""")
+
+    st.write("""
+    - *For all other variables, as the missingness is less than 5% in each variable, we will do simple imputation.*
+    - *educ is categorical, therefore, the mode imputation will be used.*
+    - *For CIGPDAY and BMI, the median imputation will be used to be more robust against outliers.*
     """)
 
     # mode imputation (educ)
@@ -331,9 +327,7 @@ with st.expander("3. Exploratory Data Analysis (EDA), Cleaning, and Feature Engi
     X_train['HEARTRTE'] = X_train['HEARTRTE'].fillna(median_heartrate)
     X_test['HEARTRTE'] = X_test['HEARTRTE'].fillna(median_heartrate)
 
-    st.write("""
-    - *We will use MICE (Multiple Imputation by Chained Equations) for imputation of TOTCHOL and GLUCOSE.*""")
-
+    
     # MICE Imputation (TOTCHOl, GLUCOSE) 
     mice_cols = ['AGE', 'SEX', 'educ', 'TOTCHOL', 'SYSBP', 'DIABP',
     'DIABETES', 'HEARTRTE', 'GLUCOSE', 'CURSMOKE', 'CIGPDAY', 'BMI']
@@ -364,11 +358,8 @@ with st.expander("3. Exploratory Data Analysis (EDA), Cleaning, and Feature Engi
     st.write("Test set:")
     st.write(X_test.isna().sum())
     st.write("""
-    - *X_train and X_test are now fully imputed and cleaned for further modeling*
+    - *X_train and X_test are now fully imputed and cleaned for further modeling.*
     """)
-
-
-    #add also checking distributions before and after imputation - should not change much
 
 
     st.write("### Apply transformations against skewness")
@@ -376,10 +367,11 @@ with st.expander("3. Exploratory Data Analysis (EDA), Cleaning, and Feature Engi
     skewness_results = X_train[numerical].apply(lambda x: skew(x.dropna())).sort_values(ascending=False)
     st.write(skewness_results)
     st.write("""
-    - *From the skewness results we can identify these variables as highly skewed: GLUCOSE, CIGPDAY, SYSBP, BMI*
-    - *Log transformation will be applied to them*
-    - *Check distributions after log tranformation:*
+    - *From the skewness results we can identify these variables as highly skewed: GLUCOSE, CIGPDAY, SYSBP, BMI.*
+    - *Log transformation will be applied to them.*
     """)
+    st.write("""
+    Check distributions after log tranformation:""")
     log_transform_cols = ['GLUCOSE', 'CIGPDAY', 'SYSBP', 'BMI']
     for col in log_transform_cols:
         X_train[col] = np.log1p(X_train[col]) #transform X_train
@@ -396,13 +388,13 @@ with st.expander("3. Exploratory Data Analysis (EDA), Cleaning, and Feature Engi
     selectedVariable = st.selectbox("Select variable to plot:", log_transform_cols) #select a variable from the columns that were transformed
     render_plot(dataset[selectedVariable].hist, f'{dataset_name}', bins=30, alpha=0.4, edgecolor='black', label=selectedVariable)
     st.write("""
-    - *Distributions are symmetric, therefore, the transformation worked*
+    - *Distributions are symmetric, therefore, the transformation worked.*
     """)
 
 
     st.write("### One Hot Encoding for SEX variable")
     st.write("""*As the SEX variable was encoded with 1 and 2, we map original value 1 (Male) to 0
-    and value 2 (Female) to 1.*""")
+    and value 2 (Female) to 1 to remove artificial ordering.*""")
     # create a new binary column
     X_train['SEX_Female'] = X_train['SEX'].replace({
         1: 0, # map original value 1 (Male) to 0
@@ -431,8 +423,8 @@ with st.expander("3. Exploratory Data Analysis (EDA), Cleaning, and Feature Engi
 
 
     st.write("### Scaling")
-    st.write("""*Since we have already handled outliers, we can use standard scaling to prepare data for modeling.*""")
-    st.write("""*We applied StandardScaler calculate on X_train, and transformed X_train and X_test using this scaling to prevent data leakage*""")
+    st.write("""Since the outlires have been already handled, the standard scaling can be used to prepare data for modeling.""")
+    st.write("""StandardScaler was fitted on the training set and subsequently applied to both the training and test sets to prevent data leakage.""")
 
     scaler = StandardScaler() #since we already handled outliers we can use standard scaling
     scaler.fit(X_train[numerical]) #fit only on train data (leakage prevention), calculating mean and standard deviation of X_train
@@ -497,7 +489,7 @@ with st.expander("4. Visualization of the Final Data"):
     st.write(f'Training target {dataset_name} shape: {dataset.shape} with {dataset.value_counts()[0]} CVD patients and {dataset.value_counts()[1]} healthy patients.')
     st.write("""
     - *The target distribution indicates imbalanced dataset, thus, it should be kept in mind during the ML models training.*
-    - *The target train and test set distributions were kept similar after pre-processing.
+    - *The target class distribution in the training and test sets remained consistent after pre-processing.*
              """)
 
 
@@ -749,39 +741,46 @@ with st.expander("6. Comparing ML Models"):
     st.dataframe(model_comparison, use_container_width=True)
 
     st.write("""
-             Four ML models were evaluated for predicting future cardiovascular disease (CVD) using baseline patient
-             characteristics: Logistic Regression (LR), Decision Tree (DT), Random Forest (RF), and K-Nearest Neighbors (KNN).
+             **Models evaluation:**  
+             Four ML models were evaluated for **predicting future cardiovascular disease (CVD)** using baseline patient
+             characteristics: **Logistic Regression (LR), Decision Tree (DT), Random Forest (RF), and K-Nearest Neighbors (KNN).**
              Model performance was assessed using accuracy, class-specific precision and recall, F1-score for the positive class (CVD),
-             ROC–AUC, and cross-validated F1-score. Given that the data were imbalanced, accuracy was interpreted with caution and was
-             not used as the primary criterion for model comparison. F1-score and recall for the positive class were prioritised as they
-             better reflect the ability to identify CVD cases.""")
+             ROC–AUC, and cross-validated F1-score. Given that the data were imbalanced, **accuracy was interpreted with caution** and was
+             not used as the primary criterion for model comparison. **F1-score and recall for the positive class were prioritised** as they
+             **better reflect the ability to identify CVD cases.**""")
     st.write("""
     **Final model choice: Logistic Regression.**  
              Logistic Regression was selected as the best model for cardiovascular disease prediction in this imbalanced dataset.
-             Although Random Forest achieved slightly higher test-set F1-score and less overfitting according to the cross-validation F1-score,
-             Logistic Regression maintained  strong recall for CVD cases relatively to other models. In addition, its better interpretability compared to, for example, Random Forest make it the most
-             appropriate choice for clinical risk prediction. Whereas, the KNN model was excluded due to its inability to identify positive cases despite high accuracy,
-             which is not a reliable metrics for imbalanced datasets.
+             Although **Random Forest achieved slightly higher test-set F1-score** and **less overfitting according to the cross-validation** F1-score,
+             Logistic Regression maintained **strong recall for CVD cases relatively to other models.** In addition, its **better interpretability** compared to, for example, Random Forest make it the **most
+             appropriate choice for clinical risk prediction.** Whereas, the **KNN model was excluded** due to its inability to identify positive cases despite high accuracy,
+             which is not a reliable metric for imbalanced datasets.
              """)
     st.write("""
     **Possible reasons for limited model performance:**  
-             1. Timing of events was ignored  
-             - *A CVD event after 1 year was treated the same as an event after 20 years.  
-             - Long follow-up periods allow substantial divergence between individuals with identical baseline profiles (especially for lifestyle features).*  
-             2. Limited follow-up  
-             - *Follow-up duration varied substantially across participants.*  
-             2. Patients at beginning of recording are way younger  
-             - *According to the literature, in young patients at baseline the most predictable markers for future CVD events are: lipoprotein A, hereditary CVD,
-             familiary hypercholesteremia, and ApoB value. Including these in the baseline could mitigate the problems with model performance.*  
-             3. Features used  
-             - *Baseline features are single measures, sometimes self-reported and thus inherently have low precision.*  
-             4. Heterogeneous target label  
-             - *Combined ANYCHD and STROKE included multiple cardiovascular outcomes with partly distinct underlying mechanisms and risk profiles.
-             This increases class overlap and introduces label noise, which inherently limits the ability of models to distinguish future CVD cases
-             from non-cases based on baseline features.*
-             5. Feature engineering
-             - In the future, SYSBP and DIABP could be combined in one feature as they are highly correlated.
-             """)
+
+    **1. Timing of events was ignored**  
+    - *A CVD event after 1 year was treated the same as an event after 20 years.*  
+    - *Long follow-up periods allow substantial divergence between individuals with identical baseline profiles (especially for lifestyle features).*  
+    
+    **2. Limited follow-up**  
+    - *Follow-up duration varied substantially across participants.*  
+
+    **3. Patients at the beginning of the follow-up are younger**  
+    - *According to the literature, in young patients at baseline the most predictable markers for future CVD events are: lipoprotein A, hereditary CVD,
+    familiary hypercholesteremia, and ApoB value. Including these in the baseline could mitigate the problems with model performance.*  
+
+    **4. Features used**  
+    - *Baseline features are single measures, sometimes self-reported and thus inherently have low precision.*  
+
+    **5. Heterogeneous target label**  
+    - *Combined ANYCHD and STROKE included multiple cardiovascular outcomes with partly distinct underlying mechanisms and risk profiles. 
+    This increases class overlap and introduces label noise, which inherently limits the ability of models to distinguish future CVD cases
+    from non-cases based on baseline features.*  
+
+    **6. Feature engineering**  
+    - In the future, SYSBP and DIABP could be combined in one feature as they are highly correlated.
+    """)
              
 
 with st.expander("7. Conclusion"):
@@ -789,14 +788,10 @@ with st.expander("7. Conclusion"):
 
     st.write("""
     **Research Question:**  
-    - **To what extent** can **baseline patient characteristics from the Framingham dataset** be used by machine-learning models to **reliably predict the occurrence of major cardiovascular events** (stroke, CHD, myocardial infarction (MI), and coronary insufficiency)?"). 
+    - **To what extent** can **baseline patient characteristics from the Framingham dataset** be used by machine-learning models to **reliably predict the occurrence of major cardiovascular events** (stroke, CHD, myocardial infarction (MI), and coronary insufficiency)?  
              
     **Conclusion:**  
-    - **Baseline patient characteristics** from the Framingham dataset allow only **limited predictive discrimination** and are **insufficient** on their own **for reliable prediction of future cardiovascular events.**""")
-
-    """Limitations: 
-    - Maybe should have also feature engineered blood pressure"""
-    """Answer on RQ based on ML, feature importance"""
+    - **Baseline patient characteristics** from the Framingham dataset allow only **limited predictive discrimination** and are **insufficient** on their own **for reliable prediction of future cardiovascular events.**""")  
 
 with st.expander("8. References"):
     st.header("8. References") #include genAI statement
