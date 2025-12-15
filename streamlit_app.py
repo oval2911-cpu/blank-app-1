@@ -142,7 +142,7 @@ dhs
 st.write(f'**Shape** (n of rows and columns) of the subset: :blue-background[{dhs.shape}]')
 
 st.write("### Created Subset Variables:")
-"""check all columns of the created subset"""
+"""Overview of all columns of the created subset:"""
 st.write(dhs.columns)
 
 # not visualized in the app, but the subset descriptive statistics were also checked
@@ -187,7 +187,7 @@ def render_plot(obj, title="", *args, **kwargs):
     plt.yticks(fontsize=20)
     plt.xticks(fontsize=20)
     for ax in fig.axes:
-        ax.tick_params(axis='x', rotation=30)
+        ax.tick_params(axis='x', rotation=90)
     
     # show in streamlit
     st.pyplot(fig)
@@ -242,20 +242,17 @@ cat_df = X_train[categorical]
 
 rawX_train = X_train.copy() #keep a copy of raw X_train for later visualization comparison
 rawX_test = X_test.copy() #keep a copy of raw X_test for later visualization comparison
-"""--> Missing values have to be handled"""
-"""--> No duplicates to handle
-Outliers
-transformations for skewed data
-encoding 
-put target in 1
-##Outlier detection and handling, Impute only Period 1, and only training set to prevent data leakage
-"""
+"""Now on this new dataset, with a target variable, we can proceed to cleaning"""
+
 
 st.write("### Outlier Detection and Handling")
+st.write("It is important to only act on Training Set, and only use baseline features to prevent data leakage.")
+st.write("A quick boxplot gives us an overview over the outliers of our data:")
 render_plot(sns.boxplot, data=X_train[numerical], orient='h')
 st.write("""
 - *Most of the outliers are on the right hand side due to skewness*
 - *Age has no outliers*
+- *Outermost physiological limits: TOTCHOL (50-500 mg/dL), SYSBP (40-350 mmHg), GLUCOSE (20-1000 mg/dL)*
 - *Most outliers are theoretically possible due to extreme medical conditions, therefore, decided to keep them*
 """)
 
@@ -304,7 +301,7 @@ st.write("""
 """)
 
 #add correlations between variables
-render_plot(sns.heatmap(X_train.corr(), annot=True, cmap='coolwarm', fmt=".2f"))
+render_plot(sns.heatmap(X_train.corr(), annot=True, cmap='coolwarm', fmt='.2f'))
 render_plot(msno.heatmap(X_train).figure)
 
 render_plot(sns.pairplot(X_train[['AGE','TOTCHOL','SYSBP','DIABP','GLUCOSE','BMI','HEARTRTE']],corner=True,diag_kind='hist').fig)
@@ -315,11 +312,8 @@ st.write("""
 """)
 
 st.write("""
-- Will do imputation as the missingness is less than 5% in each variable*
+- For all other, as the missingness is less than 5% in each variable, we will do simple imputation*
 - *educ is categroical, therefore, will use mode for imputation*
-- *Missingness of TOTCHOL and GLUCOSE varies based on different features, therefore, consider it MAR.
-MAR should be imputed using model-based imputation after outliers and other missing data are handled
-because TOTCHOL and GLUCOSE depend on them.*
 - *For CIGPDAY and BMI will use median imputation to be more robust against outliers*
 """)
 
@@ -341,6 +335,11 @@ median_heartrate = X_train['HEARTRTE'].median() #was imputed due to its missingn
 X_train['HEARTRTE'] = X_train['HEARTRTE'].fillna(median_heartrate)
 X_test['HEARTRTE'] = X_test['HEARTRTE'].fillna(median_heartrate)
 
+st.write("""
+- *Missingness of TOTCHOL and GLUCOSE varies based on different features, therefore, consider it MAR.
+MAR should be imputed using model-based imputation after outliers and other missing data are handled
+because TOTCHOL and GLUCOSE depend on them.*
+- *We will use MICE (Multiple Imputation by Chained Equations) for imputation of TOTCHOL and GLUCOSE.*""")
 
 # MICE Imputation (TOTCHOl, GLUCOSE) 
 mice_cols = ['AGE', 'SEX', 'educ', 'TOTCHOL', 'SYSBP', 'DIABP',
@@ -440,6 +439,8 @@ rawX_test = rawX_test.drop('SEX', axis=1) #drop original SEX variable
 
 st.write("### Scaling")
 st.write("""*Since we have already handled outliers, we can use standard scaling to prepare data for modeling.*""")
+st.write("""*We applied StandardScaler calculate on X_train, and transformed X_train and X_test using this scaling to prevent data leakage*""")
+
 scaler = StandardScaler() #since we already handled outliers we can use standard scaling
 scaler.fit(X_train[numerical]) #fit only on train data (leakage prevention), calculating mean and standard deviation of X_train
 X_train[numerical] = scaler.transform(X_train[numerical]) #transform train data
@@ -449,31 +450,7 @@ X_test[numerical] = scaler.transform(X_test[numerical]) #transform test data
 scaler.fit(rawX_train[numerical]) #fit only on train data (leakage prevention), calculating mean and standard deviation of X_train
 rawX_train[numerical] = scaler.transform(rawX_train[numerical]) #transform train data
 rawX_test[numerical] = scaler.transform(rawX_test[numerical]) #transform test data
-
-
-# st.header("4. Visualization of the Final Data") #visualization of our cleaned subset
-
-# st.write("### Final Data Variable Distributions")
-# # make a on/off button to select train/test set
-# on = st.toggle('Turn on to see test set')
-# if on:
-#     dataset = X_test
-#     dataset_name = "X_test set"
-# else:
-#     dataset = X_train
-#     dataset_name = "X_train set"
-# selectedVariable = st.selectbox("Select variable to plot:", dataset.columns)
-# render_plot(dataset[selectedVariable].hist, f'{dataset_name}', bins=30, alpha=0.4, edgecolor='black', label=selectedVariable)
-
-# st.write(f"Total training samples (X_train): :blue-background[{X_train.shape[0]}]")
-# outcome_distribution = y_train.value_counts(normalize=True) * 100
-
-# print(outcome_distribution.round(2)) #not visualized, only in terminal output
-# render_plot(y_train.value_counts().plot, kind='pie', autopct='%1.1f%%', 
-#             title='Training Target Disease Distribution (y_train)')
-# st.write("""
-# - *The target distribution indicates imbalanced dataset, thus, it should be kept in mind during the ML models training.*
-# """)
+st.write("Data preparation is now complete, and the data is ready for modeling.")
 
 st.header("4. Visualization of the Final Data")
 st.write("### Final Data Variable Distributions")
@@ -502,7 +479,7 @@ if overlap_raw:
         plt.legend()
     
     render_plot(plot_overlaid, title=f"{dataset_name} vs Raw - {selectedVariable}")
-    
+    st.write(f"Total training samples (X_train): :blue-background[{X_train.shape[0]}]")
 else:
     def plot_single():
         # Single distribution with stats
@@ -511,7 +488,12 @@ else:
         plt.legend()
     
     render_plot(plot_single, title=f"{dataset_name} - {selectedVariable}")
+    st.write(f"Total training samples (X_train): :blue-background[{X_train.shape[0]}]")
 
+render_plot(y_train.value_counts().plot, kind='pie', autopct='%1.1f%%', title='Training Target Disease Distribution (y_train)')
+st.write("""
+- *The target distribution indicates imbalanced dataset, thus, it should be kept in mind during the ML models training.*
+""")
 
 st.header("5. ML Models Training and Prediction Evaluation") #4 algorithms, evaluation also includes CV and feature importance
 
