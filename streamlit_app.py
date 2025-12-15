@@ -486,7 +486,7 @@ with st.expander("4. Visualization of the Final Data"):
         dataset = y_train
         dataset_name = "y_train"
     render_plot(dataset.value_counts().plot, kind='pie', autopct='%1.1f%%', title=f'Training Target Disease Distribution ({dataset_name})')
-    st.write(f'Training target {dataset_name} shape: {dataset.shape} with {dataset.value_counts()[0]} CVD patients and {dataset.value_counts()[1]} healthy patients.')
+    st.write(f'Training target {dataset_name} shape: {dataset.shape} with {dataset.value_counts()[1]} CVD patients and {dataset.value_counts()[0]} healthy patients.')
     st.write("""
     - *The target distribution indicates imbalanced dataset, thus, it should be kept in mind during the ML models training.*
     - *The target class distribution in the training and test sets remained consistent after pre-processing.*
