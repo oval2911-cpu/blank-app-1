@@ -95,7 +95,7 @@ st.write('### Raw Dataset Descriptive Statistics:')
 st.write(data_heart.describe())
 st.write("""
 - ***RANDID variable is not interesting**, therefore, it **will be removed** in the following steps*
-- *Interestingly, **sex was encoded with 1 and 2** so we should **be careful** and encode it to 0 and 1 before applying ML*
+- *Interestingly, **sex was encoded with 1 and 2** so we should **be careful** and encode it to 0 and 1 before applying ML, to preven learning hierachy*
 """)
 # not visualized in the app, but the raw dataset was also checked for missing values and duplicates
 print(data_heart.isna().sum()) #in the terminal output it can be seen that there are some missing values that have to be checked for and handled
@@ -252,8 +252,8 @@ render_plot(sns.boxplot, data=X_train[numerical], orient='h')
 st.write("""
 - *Most of the outliers are on the right hand side due to skewness*
 - *Age has no outliers*
-- *Outermost physiological limits: TOTCHOL (50-500 mg/dL), SYSBP (40-350 mmHg), GLUCOSE (20-1000 mg/dL)*
-- *Most outliers are theoretically possible due to extreme medical conditions, therefore, decided to keep them*
+- *Outermost physiological limits are: TOTCHOL (50-500 mg/dL), SYSBP (40-350 mmHg), GLUCOSE (20-1000 mg/dL)*
+- *Comparing those limits to our outliers, all are theoretically possible due to extreme medical conditions, therefore, decided to keep them*
 """)
 
 # not visualized in the app, but also checked if there are many values outside whiskers (1.5*IQR)
@@ -292,28 +292,42 @@ st.write(pd.DataFrame({
 st.write("""
 - *5 Variables: educ, TOTCHOL, GLUCOSE, CIGPDAY, and BMI have missing values*
 """)
-
 st.write("""
 - *GLUCOSE has >5% missing, which automatically makes it a candidate for model based imputation*
-- *Another reason for model based imputation is if type of missingness is MAR (Missing at Random)*
+""")
+
+st.write("""Another visualization of missing data is the missingno matrix, which shows percentage and absolute number of present data:""")
+render_plot(msno.bar(X_train).figure)
+
+st.write("""GLUCOSE will be model based imputed because of its high missingness.
+         Another reason for model based imputation is if type of missingness is MAR (Missing at Random)
          
 - *To check if variables are correlated with missingness of GLUCOSE and TOTCHOL, correlation heatmap and missingno heatmap are plotted below*
 """)
 
 #add correlations between variables
 render_plot(sns.heatmap(X_train.corr(), annot=True, cmap='coolwarm', fmt='.2f'))
-render_plot(msno.heatmap(X_train).figure)
-
-render_plot(sns.pairplot(X_train[['AGE','TOTCHOL','SYSBP','DIABP','GLUCOSE','BMI','HEARTRTE']],corner=True,diag_kind='hist').fig)
-
 
 st.write("""
-- *From the correlation heatmap we can see that TOTCHOL is MAR, and should thus also be model based imputed.*
-""")
+Missingno heatmap relates missingness of variables to each other.""")
+
+render_plot(msno.heatmap(X_train).figure)
+
+st.write("""
+- *You can see that TOTCHOL has slight correlations with missingness in BMI and GLUCOSE*
+- *This makes it a candidate for model based imputation as well, as its missingness may depend on other variables*""")
+
+
+#render_plot(sns.pairplot(X_train[['AGE','TOTCHOL','SYSBP','DIABP','GLUCOSE','BMI','HEARTRTE']],corner=True,diag_kind='hist').fig)
+
+
+#st.write("""
+#- *From the correlation heatmap we can see that TOTCHOL is MAR, and should thus also be model based imputed.*
+#""")
 
 st.write("""
 - For all other, as the missingness is less than 5% in each variable, we will do simple imputation*
-- *educ is categroical, therefore, will use mode for imputation*
+- *educ is categorical, therefore, will use mode for imputation*
 - *For CIGPDAY and BMI will use median imputation to be more robust against outliers*
 """)
 
@@ -336,9 +350,6 @@ X_train['HEARTRTE'] = X_train['HEARTRTE'].fillna(median_heartrate)
 X_test['HEARTRTE'] = X_test['HEARTRTE'].fillna(median_heartrate)
 
 st.write("""
-- *Missingness of TOTCHOL and GLUCOSE varies based on different features, therefore, consider it MAR.
-MAR should be imputed using model-based imputation after outliers and other missing data are handled
-because TOTCHOL and GLUCOSE depend on them.*
 - *We will use MICE (Multiple Imputation by Chained Equations) for imputation of TOTCHOL and GLUCOSE.*""")
 
 # MICE Imputation (TOTCHOl, GLUCOSE) 
