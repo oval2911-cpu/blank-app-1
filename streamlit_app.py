@@ -42,20 +42,20 @@ with st.expander("1. Background and Research Question"):
     st.header("1. Background and Research Question") #background on the dataset and our RQ
 
     st.write("### Framingham Heart Study Dataset:")
-    st.write("""- ***Extensive follow-up study** dataset on **cardiovascular health** ongoing **since 1948***
-    - *Up to **3 follow-up periods** (fewer for some patients): **Period 1 = baseline***
-    - ***11,627 examination records** (rows) from **4,434 patients***
-    - ***39 variables:***
-        - *Demographics (sex, age)*
-        - *Clinical health data (blood pressure, diabetes)*
-        - *Lifestyle (smoking, BMI)*
-        - *Occurrence of cardiovascular diseases (stroke, coronary heart disease (CHD))*""")
+    st.write("""- **Extensive follow-up study** dataset on **cardiovascular health** ongoing **since 1948 (1):**
+    - Up to **3 follow-up periods** (fewer for some patients): **Period 1 = baseline**
+    - **11,627 examination records** (rows) from **4,434 patients**
+    - **39 variables:**
+        - Demographics (sex, age)
+        - Clinical health data (blood pressure, diabetes)
+        - Lifestyle (smoking, BMI)
+        - Occurrence of cardiovascular diseases (stroke, coronary heart disease (CHD))""")
 
     st.write("### Research Question:")
-    st.write("***To what extent** can **baseline patient characteristics from the Framingham dataset** be used by machine-learning models to **reliably predict the occurrence of major cardiovascular events** (stroke, CHD, myocardial infarction (MI), and coronary insufficiency)?*")
+    st.write("**To what extent** can **baseline patient characteristics from the Framingham dataset** be used by machine-learning (ML) models to **reliably predict the occurrence of major cardiovascular events (CVD)** (stroke, CHD, myocardial infarction (MI), and coronary insufficiency)?")
 
     st.write("### Previous Research Findings:")
-    st.write("*Previously reported research shows BMI, cholesterol and blood pressure can have an influence on CVD risk (Bays et al., 2021): → Which modifiable factors are correlated with CVD the strongest, and are thus worth minimizing?*")
+    st.write("Previously reported research shows that BMI, cholesterol and blood pressure can have an influence on the CVD risk (2).")
 
 
 # section 2
@@ -68,15 +68,15 @@ with st.expander("2. Data Preparation"):
     data_heart
     st.write(f'**Shape** (n of rows and columns) of the raw dataset: :blue-background[{data_heart.shape}]')
     st.write("""
-    - *Each **row represents one exam**, so there are **more rows than number of patients** (RANDIDs repeat)*
-    - *Some cells contain 'None', therefore, **some missing values can already be expected and will have to be handled***
+    - *Each **row represents one exam**, so there are **more rows than number of patients** (RANDIDs repeat).*
+    - *Some cells contain 'None', therefore, **some missing values can already be expected and will have to be handled.***
     """)
 
     st.write('### Raw Dataset Descriptive Statistics:')
     st.write(data_heart.describe())
     st.write("""
-    - ***RANDID variable is not interesting**, therefore, it **will be removed** in the following steps*
-    - *Interestingly, **sex was encoded with 1 and 2** so we should **be careful** and encode it to 0 and 1 before applying ML, to preven learning hierachy*
+    - ***RANDID variable is not interesting**, therefore, it **will be removed** in the following steps.*
+    - *Interestingly, **sex was encoded with 1 and 2**. As it **introduces artificial ordering** and numerical meaning, it may **bias ML model** learning and interpretation. Therefore, we should **be careful** and encode it to 0 and 1 before applying ML, to preven learning hierachy*
     """)
     # not visualized in the app, but the raw dataset was also checked for missing values and duplicates
     print(data_heart.isna().sum()) #in the terminal output it can be seen that there are some missing values that have to be checked for and handled
@@ -549,10 +549,10 @@ with st.expander("5. ML Models Training and Prediction Evaluation"):
         if cv:
             with st.expander("Cross-validation"):
                 cv_scores = cross_val_score(model, X_train, y_train, scoring='f1', cv=cv_value)
-                prediction_cv = cross_val_predict(model, X_test, y_test, cv=cv_value)
+                prediction_cv = cross_val_predict(model, X_train, y_train, cv=cv_value)
                 st.write(f'Cross-validation f1-score for class 1 is {cv_scores.mean().round(2)} with a standard deviation of {cv_scores.std().round(2)}')
                 # confusion matrix
-                cm_cv = confusion_matrix(y_true=y_test, normalize='true', y_pred=prediction_cv)
+                cm_cv = confusion_matrix(y_true=y_train, normalize='true', y_pred=prediction_cv)
                 fig_cm, ax_cm = plt.subplots()
                 sns.heatmap(cm_cv, annot=True, ax=ax_cm)
                 st.pyplot(fig_cm)
@@ -570,33 +570,6 @@ with st.expander("5. ML Models Training and Prediction Evaluation"):
                 ax_cv.legend(loc='best');
                 st.pyplot(fig_cv)
 
-    from sklearn.feature_selection import SelectKBest
-    from sklearn.feature_selection import chi2
-    cat_cols = [c for c in categorical if c in X_train.columns]  # avoids missing columns (e.g., SEX)
-    features = X_train[cat_cols]
-    target = y_train
-    best_features = SelectKBest(score_func = chi2,k = 'all')
-    fit = best_features.fit(features, target)
-    featureScores = pd.DataFrame(data = fit.scores_,index = list(features.columns),columns = ['Chi Squared Score']) 
-    fig_cat, ax_cat = plt.subplots(figsize=(5, 5))
-    sns.heatmap(featureScores.sort_values(ascending = False,by = 'Chi Squared Score'),annot = True,linewidths = 0.4,linecolor = 'black',fmt = '.2f', ax=ax_cat);
-    plt.title('Selection of Categorical Features');
-    st.pyplot(fig_cat)
-    #plt.close(fig)
-    st.write(X_train.columns)
-
-
-
-    from sklearn.feature_selection import f_classif
-    features = X_train[numerical]
-    target = y_train
-    best_features = SelectKBest(score_func = f_classif,k = 'all')
-    fit = best_features.fit(features,target)
-    featureScores = pd.DataFrame(data = fit.scores_,index = list(features.columns),columns = ['ANOVA Score']) 
-    fig_num, ax_num = plt.subplots(figsize = (5,5))
-    sns.heatmap(featureScores.sort_values(ascending = False,by = 'ANOVA Score'),annot = True,linewidths = 0.4,linecolor = 'black',fmt = '.2f');
-    plt.title('Selection of Numerical Features');
-    st.pyplot(fig_num)
 
     st.write('### Algorithm 1: Logistic regression')
     model_name = "Logistic regression"
@@ -728,35 +701,105 @@ with st.expander("6. Comparing ML Models"):
     st.header("6. Comparing ML Models") #selecting the best model out of 4 fine-tuned models
     #table with best fine-tuned models comparison
     # and explanation why we think which one is better
-    "Algorithm choice and what to mention when comparing them:"
-    "For example, do we need to explain how the algorithm's"
-    "choice was made? Why is the algorithm advising this treatment for you?"
-    "(whitebox vs blackbox algorithms)"
-    "Or perhaps some algorithms just take too much time to train,"
-    "even with todays computational power"
+    model_comparison = pd.DataFrame({
+        "Model": [
+            "Logistic Regression",
+            "Decision Tree",
+            "Random Forest",
+            "KNN"
+        ],
+        "Accuracy": [
+            0.61,
+            0.61,
+            0.66,
+            0.76
+        ],
+        "Recall (CVD)": [
+            0.55,
+            0.54,
+            0.56,
+            0.19
+        ],
+        "Precision (Healthy)": [
+            0.83,
+            0.83,
+            0.85,
+            0.80
+        ],
+        "F1-score (CVD)": [
+            0.38,
+            0.38,
+            0.42,
+            0.26
+        ],
+        "ROC–AUC": [
+            0.65,
+            0.61,
+            0.66,
+            0.60
+        ],
+        "CV F1-score (CVD)": [
+            "0.47 ± 0.02",
+            "0.40 ± 0.02",
+            "0.44 ± 0.02",
+            "0.21 ± 0.02"
+        ]
+    })
+
+    st.dataframe(model_comparison, use_container_width=True)
+
+    st.write("""
+             Four ML models were evaluated for predicting future cardiovascular disease (CVD) using baseline patient
+             characteristics: Logistic Regression (LR), Decision Tree (DT), Random Forest (RF), and K-Nearest Neighbors (KNN).
+             Model performance was assessed using accuracy, class-specific precision and recall, F1-score for the positive class (CVD),
+             ROC–AUC, and cross-validated F1-score. Given that the data were imbalanced, accuracy was interpreted with caution and was
+             not used as the primary criterion for model comparison. F1-score and recall for the positive class were prioritised as they
+             better reflect the ability to identify CVD cases.""")
+    st.write("""
+    **Final model choice: Logistic Regression.**  
+             Logistic Regression was selected as the best model for cardiovascular disease prediction in this imbalanced dataset.
+             Although Random Forest achieved slightly higher test-set F1-score and less overfitting according to the cross-validation F1-score,
+             Logistic Regression maintained  strong recall for CVD cases relatively to other models. In addition, its better interpretability compared to, for example, Random Forest make it the most
+             appropriate choice for clinical risk prediction. Whereas, the KNN model was excluded due to its inability to identify positive cases despite high accuracy,
+             which is not a reliable metrics for imbalanced datasets.
+             """)
+    st.write("""
+    **Possible reasons for limited model performance:**  
+             1. Timing of events was ignored  
+             - *A CVD event after 1 year was treated the same as an event after 20 years.  
+             - Long follow-up periods allow substantial divergence between individuals with identical baseline profiles (especially for lifestyle features).*  
+             2. Limited follow-up  
+             - *Follow-up duration varied substantially across participants.*  
+             2. Patients at beginning of recording are way younger  
+             - *According to the literature, in young patients at baseline the most predictable markers for future CVD events are: lipoprotein A, hereditary CVD,
+             familiary hypercholesteremia, and ApoB value. Including these in the baseline could mitigate the problems with model performance.*  
+             3. Features used  
+             - *Baseline features are single measures, sometimes self-reported and thus inherently have low precision.*  
+             4. Heterogeneous target label  
+             - *Combined ANYCHD and STROKE included multiple cardiovascular outcomes with partly distinct underlying mechanisms and risk profiles.
+             This increases class overlap and introduces label noise, which inherently limits the ability of models to distinguish future CVD cases
+             from non-cases based on baseline features.*
+             5. Feature engineering
+             - In the future, SYSBP and DIABP could be combined in one feature as they are highly correlated.
+             """)
+             
 
 with st.expander("7. Conclusion"):
     st.header("7. Conclusion")
 
+    st.write("""
+    **Research Question:**  
+    - **To what extent** can **baseline patient characteristics from the Framingham dataset** be used by machine-learning models to **reliably predict the occurrence of major cardiovascular events** (stroke, CHD, myocardial infarction (MI), and coronary insufficiency)?"). 
+             
+    **Conclusion:**  
+    - **Baseline patient characteristics** from the Framingham dataset allow only **limited predictive discrimination** and are **insufficient** on their own **for reliable prediction of future cardiovascular events.**""")
+
     """Limitations: 
-    - Patients were followed-up in incomparable timespans (e.g. 1 patient 2 years, another 6 years) --> can bias predictions
     - Maybe should have also feature engineered blood pressure"""
     """Answer on RQ based on ML, feature importance"""
 
 with st.expander("8. References"):
     st.header("8. References") #include genAI statement
 
-
-    st.markdown("*Streamlit* is **really** ***cool***.")
-    st.markdown('''
-        :red[Streamlit] :orange[can] :green[write] :blue[text] :violet[in]
-        :gray[pretty] :rainbow[colors] and :blue-background[highlight] text.''')
-
-    multi = '''If you end a line with two spaces,
-    a soft return is used for the next line.
-
-    st.markdown("This is black and :red[this is red!]")
-
-    Two (or more) newline characters in a row will result in a hard return.
-    '''
-    st.markdown(multi)
+"""1. Dataset documentation
+2. s that BMI, cholesterol and blood pressure can have an influence on the CVD risk (Bays et al., 2021)."""
