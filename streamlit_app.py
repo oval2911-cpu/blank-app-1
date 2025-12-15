@@ -486,10 +486,19 @@ with st.expander("4. Visualization of the Final Data"):
         render_plot(plot_single, title=f"{dataset_name} - {selectedVariable}")
         st.write(f"Total training samples (X_train): :blue-background[{X_train.shape[0]}]")
 
-    render_plot(y_train.value_counts().plot, kind='pie', autopct='%1.1f%%', title='Training Target Disease Distribution (y_train)')
+    on = st.toggle('Turn on to see test target set')
+    if on:
+        dataset = y_test
+        dataset_name = "y_test"
+    else:
+        dataset = y_train
+        dataset_name = "y_train"
+    render_plot(dataset.value_counts().plot, kind='pie', autopct='%1.1f%%', title=f'Training Target Disease Distribution ({dataset_name})')
+    st.write(f'Training target {dataset_name} shape: {dataset.shape} with {dataset.value_counts()[0]} CVD patients and {dataset.value_counts()[1]} healthy patients.')
     st.write("""
     - *The target distribution indicates imbalanced dataset, thus, it should be kept in mind during the ML models training.*
-    """)
+    - *The target train and test set distributions were kept similar after pre-processing.
+             """)
 
 
 with st.expander("5. ML Models Training and Prediction Evaluation"):
@@ -521,13 +530,6 @@ with st.expander("5. ML Models Training and Prediction Evaluation"):
             sns.heatmap(cm, annot=True, ax=ax_cm)
             st.pyplot(fig_cm)
 
-        # visualization (only for decision tree)
-        if model_name == "Decision Tree":
-            with st.expander("Decision Tree Visualization"):
-                fig_dt, ax_dt = plt.subplots(figsize=(16,10))
-                tree.plot_tree(model, ax=ax_dt);
-                st.pyplot(fig_dt)
-
         # ROC curve and AUC (since we have binary classification)
         y_prob = model.predict_proba(X_test)[:,1]
         fpr, tpr, thresholds = roc_curve(y_test, y_prob)
@@ -546,9 +548,9 @@ with st.expander("5. ML Models Training and Prediction Evaluation"):
         # Cross-validation
         if cv:
             with st.expander("Cross-validation"):
-                cv_scores = cross_val_score(model, X_train, y_train, scoring='accuracy', cv=cv_value)
+                cv_scores = cross_val_score(model, X_train, y_train, scoring='f1', cv=cv_value)
                 prediction_cv = cross_val_predict(model, X_test, y_test, cv=cv_value)
-                st.write(f'Cross-validation accuracy is {cv_scores.mean().round(2)} with a standard deviation of {cv_scores.std().round(2)}')
+                st.write(f'Cross-validation f1-score for class 1 is {cv_scores.mean().round(2)} with a standard deviation of {cv_scores.std().round(2)}')
                 # confusion matrix
                 cm_cv = confusion_matrix(y_true=y_test, normalize='true', y_pred=prediction_cv)
                 fig_cm, ax_cm = plt.subplots()
@@ -568,7 +570,33 @@ with st.expander("5. ML Models Training and Prediction Evaluation"):
                 ax_cv.legend(loc='best');
                 st.pyplot(fig_cv)
 
+    from sklearn.feature_selection import SelectKBest
+    from sklearn.feature_selection import chi2
+    cat_cols = [c for c in categorical if c in X_train.columns]  # avoids missing columns (e.g., SEX)
+    features = X_train[cat_cols]
+    target = y_train
+    best_features = SelectKBest(score_func = chi2,k = 'all')
+    fit = best_features.fit(features, target)
+    featureScores = pd.DataFrame(data = fit.scores_,index = list(features.columns),columns = ['Chi Squared Score']) 
+    fig_cat, ax_cat = plt.subplots(figsize=(5, 5))
+    sns.heatmap(featureScores.sort_values(ascending = False,by = 'Chi Squared Score'),annot = True,linewidths = 0.4,linecolor = 'black',fmt = '.2f', ax=ax_cat);
+    plt.title('Selection of Categorical Features');
+    st.pyplot(fig_cat)
+    #plt.close(fig)
+    st.write(X_train.columns)
 
+
+
+    from sklearn.feature_selection import f_classif
+    features = X_train[numerical]
+    target = y_train
+    best_features = SelectKBest(score_func = f_classif,k = 'all')
+    fit = best_features.fit(features,target)
+    featureScores = pd.DataFrame(data = fit.scores_,index = list(features.columns),columns = ['ANOVA Score']) 
+    fig_num, ax_num = plt.subplots(figsize = (5,5))
+    sns.heatmap(featureScores.sort_values(ascending = False,by = 'ANOVA Score'),annot = True,linewidths = 0.4,linecolor = 'black',fmt = '.2f');
+    plt.title('Selection of Numerical Features');
+    st.pyplot(fig_num)
 
     st.write('### Algorithm 1: Logistic regression')
     model_name = "Logistic regression"
@@ -578,6 +606,8 @@ with st.expander("5. ML Models Training and Prediction Evaluation"):
                                 key = 'class_weight_lr') #added to avoid duplicated class_weight select boxes (bc use them below as well)
     penalty_lr = st.selectbox('Select penalty parameter (lbfgs solver by default):',
                             ['l2', None]) #lbfgs solver by default can only have these penalties
+    st.write('Fine-tuned parameters are: balanced and l2 penalty.')
+
     # TRAINING AND PREDICTION
     # define logistic regression (lr) classifier
     model_lr = LogisticRegression(max_iter=1000,
@@ -611,6 +641,8 @@ with st.expander("5. ML Models Training and Prediction Evaluation"):
                                     max_value = X_train.shape[0] // 2, #this is a max possible value for that (half of number of samples)
                                     value = 20, #chosen as default as the best found
                                     key = 'min_samples_leaf_dt')
+    st.write('Fine-tuned parameters are: balanced, best splitter, depth of 10, and 20 minimum samples per leaf node.')
+
     # TRAINING AND PREDICTION
     # define decision tree (dt) classifier
     model_dt = tree.DecisionTreeClassifier(random_state=42,
@@ -639,12 +671,18 @@ with st.expander("5. ML Models Training and Prediction Evaluation"):
     max_depth_rf = st.slider('Specify maximum tree depth:',
                             min_value = 1,
                             max_value = X_train.shape[0]-1,
-                            value = 10, #chosen as default as the best found
+                            value = 6, #chosen as default as the best found
                             key = 'max_depth_rf')
     min_samples_leaf_rf = st.slider('Specify minimum number ' \
                                     'of samples in a leaf node ' \
-                                    'after splitting to avoid overfitting:', 1, X_train.shape[0] // 2, 20,
+                                    'after splitting to avoid overfitting:',
+                                    min_value = 1,
+                                    max_value = X_train.shape[0] // 2,
+                                    value = 14,
                                     key = 'min_samples_leaf_rf')        
+    st.write('Fine-tuned parameters are: balanced, 200 trees, depth of 6, and 14 minimum samples per leaf node.')
+             
+
     # TRAINING AND PREDICTION
     # define random forest classifier
     model_rf = RandomForestClassifier(n_estimators = n_estimators_rf,
@@ -666,10 +704,11 @@ with st.expander("5. ML Models Training and Prediction Evaluation"):
     n_neighbors_KNN = st.slider('Select number of neighbors:',
                                 min_value = 1, #can lead to overfitting
                                 max_value = 500, #not to make it computationally heavy, can lead to underfitting
-                                value = int((X_train.shape[0])**0.5), #chosen as default as the best found 
+                                value = 5, #chosen as default as the best found 
                                 step = 2) #only odd numbers to avoid ties in a classification majority vote
     weights_KNN = st.selectbox('Select weight function:', 
                             ['uniform', 'distance', None]) 
+    st.write('Fine-tuned parameters are: 5 neighbours and uniform function.')
     # TRAINING AND PREDICTION
     # define KNN classifier
     model_KNN = KNeighborsClassifier(n_neighbors = n_neighbors_KNN,
