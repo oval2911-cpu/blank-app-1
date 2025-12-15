@@ -235,7 +235,7 @@ with st.expander("3. Exploratory Data Analysis (EDA), Cleaning, and Feature Engi
     st.write("""
     - *Most of the outliers are on the right hand side due to skewness.*
     - *Age has no outliers.*
-    - *Outermost physiological limits are: TOTCHOL (50-500 mg/dL), SYSBP (40-350 mmHg), GLUCOSE (20-1000 mg/dL).*
+    - *Outermost physiological limits are: TOTCHOL (50-500 mg/dL), SYSBP (40-350 mmHg), GLUCOSE (20-1000 mg/dL) (3,4,5).*
     - *Comparing those limits to our outliers, all are theoretically possible due to extreme medical conditions, therefore, decided to keep them.*
     """)
 
@@ -762,13 +762,13 @@ with st.expander("6. Comparing ML Models"):
     **1. Timing of events was ignored**  
     - *A CVD event after 1 year was treated the same as an event after 20 years.*  
     - *Long follow-up periods allow substantial divergence between individuals with identical baseline profiles (especially for lifestyle features).*  
-    
+
     **2. Limited follow-up**  
     - *Follow-up duration varied substantially across participants.*  
 
     **3. Patients at the beginning of the follow-up are younger**  
     - *According to the literature, in young patients at baseline the most predictable markers for future CVD events are: lipoprotein A, hereditary CVD,
-    familiary hypercholesteremia, and ApoB value. Including these in the baseline could mitigate the problems with model performance.*  
+    familiary hypercholesteremia, and ApoB value (6,7,8,9). Including these in the baseline could mitigate the problems with model performance.*  
 
     **4. Features used**  
     - *Baseline features are single measures, sometimes self-reported and thus inherently have low precision.*  
@@ -796,5 +796,19 @@ with st.expander("7. Conclusion"):
 with st.expander("8. References"):
     st.header("8. References") #include genAI statement
 
-"""1. Dataset documentation
-2. s that BMI, cholesterol and blood pressure can have an influence on the CVD risk (Bays et al., 2021)."""
+    st.write("""
+    1. Framingham Heart Study Longitudinal Data Documentation [Internet]. Available from: https://biolincc.nhlbi.nih.gov/media/teachingstudies/FHS_Teaching_Longitudinal_Data_Documentation_2021a.pdf?link_time=2024-05-26_10:36:20.705109  
+    2. Bays H. Ten things to know about ten cardiovascular disease risk factors. American Journal of Preventive Cardiology [Internet]. 2021 Mar 1;5(100149):100149. Available from: https://www.sciencedirect.com/science/article/pii/S2666667721000040#  
+    3. Pejic RN. Familial hypercholesterolemia. The Ochsner Journal [Internet]. 2014 [cited 2023 Mar 23];14(4):669–72. Available from: https://pubmed.ncbi.nlm.nih.gov/25598733/  
+    4. Hörber S, Hudak S, Kächele M, Overkamp D, Fritsche A, Häring HU, et al. Unusual high blood glucose in ketoacidosis as first presentation of type 1 diabetes mellitus. Endocrinology, Diabetes & Metabolism Case Reports. 2018 Sep 24;2018.  
+    5. Ketch T, Biaggioni I, Robertson R, Robertson D. Four Faces of Baroreflex Failure. Circulation. 2002 May 28;105(21):2518–23.  
+    6. Fatemeh Vazirian, Sadeghi M, Theodoros Kelesidis, Budoff MJ, Zandi Z, Samadi S, et al. Predictive value of lipoprotein(a) in coronary artery calcification among asymptomatic cardiovascular disease subjects: A systematic review and meta-analysis. Nutrition Metabolism and Cardiovascular Diseases [Internet]. 2023 Jul 14 [cited 2025 Dec 15];33(11):2055–66. Available from: https://www.nmcd-journal.com/article/S0939-4753(23)00285-5/abstract  
+    7. Lloyd-Jones DM, Nam BH, D’Agostino, Sr RB, Levy D, Murabito JM, Wang TJ, et al. Parental Cardiovascular Disease as a Risk Factor for Cardiovascular Disease in Middle-aged Adults. JAMA [Internet]. 2004 May 12;291(18):2204. Available from: https://jamanetwork.com/journals/jama/fullarticle/198726  
+    8. Akioyamen LE, Genest J, Chu A, Inibhunu H, Ko DT, Tu JV. Risk factors for cardiovascular disease in heterozygous familial hypercholesterolemia: A systematic review and meta-analysis. Journal of Clinical Lipidology. 2019 Jan;13(1):15–30.  
+    9. Epstein E, Ekpo E, Evans D, Varughese E, Hermel M, Jeschke S, et al. Apolipoprotein B outperforms low density lipoprotein particle number as a marker of cardiovascular risk in the UK Biobank. European journal of preventive cardiology [Internet]. 2025 Jan;zwaf554. Available from: https://pubmed.ncbi.nlm.nih.gov/40887080/  
+
+    **Generative AI statement:**  
+    When Streamlit documentation and online forums were unclear, generative AI tools (e.g. ChatGPT and Perplexity) were used in a limited and supportive manner to help interpret and understand debugging errors,
+    particularly when transferring code from Google Colab to Streamlit.
+    All problem-solving decisions, code implementation, and final outputs were performed and critically assessed by the project team.
+    """)
