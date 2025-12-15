@@ -6,6 +6,8 @@ import seaborn as sns
 import numpy as np
 import matplotlib.axes
 import matplotlib.figure
+import missingno as msno
+import statsmodels.api as sm
 from sklearn.experimental import enable_iterative_imputer
 from sklearn.impute import IterativeImputer
 from sklearn.preprocessing import LabelEncoder
@@ -146,13 +148,12 @@ st.write(dhs.columns)
 # not visualized in the app, but the subset descriptive statistics were also checked
 print(dhs.describe()) #it can be seen in the terminal output
 
-
 st.header("3. Exploratory Data Analysis (EDA), Cleaning, and Feature Engineering") #exploration of our subset and cleaning
 
 # define function for plotting (for all plots to be formatted in a same way)
 def render_plot(obj, title="", *args, **kwargs):
     figsize=(12, 8)
-    
+
     # for pandas Series
     if isinstance(obj, pd.Series):
         fig = obj.plot(kind='hist', figsize=figsize, **kwargs).get_figure()
@@ -190,6 +191,7 @@ def render_plot(obj, title="", *args, **kwargs):
     
     # show in streamlit
     st.pyplot(fig)
+    plt.close(fig)
     
     return fig
 
@@ -238,7 +240,8 @@ numerical = ['AGE', 'TOTCHOL', 'SYSBP', 'DIABP', 'HEARTRTE', 'GLUCOSE', 'CIGPDAY
 num_df = X_train[numerical]
 cat_df = X_train[categorical]
 
-
+rawX_train = X_train.copy() #keep a copy of raw X_train for later visualization comparison
+rawX_test = X_test.copy() #keep a copy of raw X_test for later visualization comparison
 """--> Missing values have to be handled"""
 """--> No duplicates to handle
 Outliers
@@ -253,7 +256,7 @@ render_plot(sns.boxplot, data=X_train[numerical], orient='h')
 st.write("""
 - *Most of the outliers are on the right hand side due to skewness*
 - *Age has no outliers*
-- *All outliers are theoretically possible due to extreme medical conditions, therefore, decided to keep them*
+- *Most outliers are theoretically possible due to extreme medical conditions, therefore, decided to keep them*
 """)
 
 # not visualized in the app, but also checked if there are many values outside whiskers (1.5*IQR)
@@ -284,14 +287,32 @@ print(compare.round(2)) #can be seen in terminal output, no drastic change, howe
 
 
 st.write("### Missing Data Handling")
-st.write(X_train.isna().sum())
+st.write(pd.DataFrame({
+    'Missing Count': X_train.isna().sum(),
+    'Missing Percentage %': ((X_train.isna().sum() / len(X_train)) * 100).round(2)
+})
+)
 st.write("""
-- *educ, TOTCHOL, GLUCOSE, CIGPDAY, and BMI have missing values*
-- *Check percentages of missigness and correlations between these variables to decide how to handle them:*
+- *5 Variables: educ, TOTCHOL, GLUCOSE, CIGPDAY, and BMI have missing values*
 """)
 
-#add table with missingness in percents
+st.write("""
+- *GLUCOSE has >5% missing, which automatically makes it a candidate for model based imputation*
+- *Another reason for model based imputation is if type of missingness is MAR (Missing at Random)*
+         
+- *To check if variables are correlated with missingness of GLUCOSE and TOTCHOL, correlation heatmap and missingno heatmap are plotted below*
+""")
+
 #add correlations between variables
+render_plot(sns.heatmap(X_train.corr(), annot=True, cmap='coolwarm', fmt=".2f"))
+render_plot(msno.heatmap(X_train).figure)
+
+render_plot(sns.pairplot(X_train[['AGE','TOTCHOL','SYSBP','DIABP','GLUCOSE','BMI','HEARTRTE']],corner=True,diag_kind='hist').fig)
+
+
+st.write("""
+- *From the correlation heatmap we can see that TOTCHOL is MAR, and should thus also be model based imputed.*
+""")
 
 st.write("""
 - Will do imputation as the missingness is less than 5% in each variable*
@@ -403,6 +424,19 @@ st.write(f'*Values of new **SEX_Female variable** after encoding: :blue-backgrou
 X_train = X_train.drop('SEX', axis=1) #drop original SEX variable
 X_test = X_test.drop('SEX', axis=1) #drop original SEX variable
 
+# Do the same on the raw data copies for later visualization comparison
+# create a new binary column
+rawX_train['SEX_Female'] = rawX_train['SEX'].replace({
+    1: 0, # map original value 1 (Male) to 0
+    2: 1  # map original value 2 (Female) to 1
+})
+rawX_test['SEX_Female'] = rawX_test['SEX'].replace({
+    1: 0, # map original value 1 (Male) to 0
+    2: 1  # map original value 2 (Female) to 1
+})
+rawX_train = rawX_train.drop('SEX', axis=1) #drop original SEX variable
+rawX_test = rawX_test.drop('SEX', axis=1) #drop original SEX variable
+
 
 st.write("### Scaling")
 st.write("""*Since we have already handled outliers, we can use standard scaling to prepare data for modeling.*""")
@@ -411,30 +445,72 @@ scaler.fit(X_train[numerical]) #fit only on train data (leakage prevention), cal
 X_train[numerical] = scaler.transform(X_train[numerical]) #transform train data
 X_test[numerical] = scaler.transform(X_test[numerical]) #transform test data
 
+#Do the same on the raw data copies for later visualization comparison
+scaler.fit(rawX_train[numerical]) #fit only on train data (leakage prevention), calculating mean and standard deviation of X_train
+rawX_train[numerical] = scaler.transform(rawX_train[numerical]) #transform train data
+rawX_test[numerical] = scaler.transform(rawX_test[numerical]) #transform test data
 
-st.header("4. Visualization of the Final Data") #visualization of our cleaned subset
 
+# st.header("4. Visualization of the Final Data") #visualization of our cleaned subset
+
+# st.write("### Final Data Variable Distributions")
+# # make a on/off button to select train/test set
+# on = st.toggle('Turn on to see test set')
+# if on:
+#     dataset = X_test
+#     dataset_name = "X_test set"
+# else:
+#     dataset = X_train
+#     dataset_name = "X_train set"
+# selectedVariable = st.selectbox("Select variable to plot:", dataset.columns)
+# render_plot(dataset[selectedVariable].hist, f'{dataset_name}', bins=30, alpha=0.4, edgecolor='black', label=selectedVariable)
+
+# st.write(f"Total training samples (X_train): :blue-background[{X_train.shape[0]}]")
+# outcome_distribution = y_train.value_counts(normalize=True) * 100
+
+# print(outcome_distribution.round(2)) #not visualized, only in terminal output
+# render_plot(y_train.value_counts().plot, kind='pie', autopct='%1.1f%%', 
+#             title='Training Target Disease Distribution (y_train)')
+# st.write("""
+# - *The target distribution indicates imbalanced dataset, thus, it should be kept in mind during the ML models training.*
+# """)
+
+st.header("4. Visualization of the Final Data")
 st.write("### Final Data Variable Distributions")
-# make a on/off button to select train/test set
+
 on = st.toggle('Turn on to see test set')
 if on:
     dataset = X_test
-    dataset_name = "X_test set"
+    dataset_name = "X_test"
+    raw_dataset = rawX_test
 else:
     dataset = X_train
-    dataset_name = "X_train set"
+    dataset_name = "X_train"
+    raw_dataset = rawX_train
+
+overlap_raw = st.toggle("Overlap RAW")
 selectedVariable = st.selectbox("Select variable to plot:", dataset.columns)
-render_plot(dataset[selectedVariable].hist, f'{dataset_name}', bins=30, alpha=0.4, edgecolor='black', label=selectedVariable)
 
-st.write(f"Total training samples (X_train): :blue-background[{X_train.shape[0]}]")
-outcome_distribution = y_train.value_counts(normalize=True) * 100
-
-print(outcome_distribution.round(2)) #not visualized, only in terminal output
-render_plot(y_train.value_counts().plot, kind='pie', autopct='%1.1f%%', 
-            title='Training Target Disease Distribution (y_train)')
-st.write("""
-- *The target distribution indicates imbalanced dataset, thus, it should be kept in mind during the ML models training.*
-""")
+if overlap_raw:
+    def plot_overlaid():
+        # Raw (red) with KDE
+        sns.histplot(raw_dataset[selectedVariable], bins=30, kde=True, 
+                    color='red', alpha=0.6, stat='density', label='Raw')
+        # Cleaned (blue) with KDE  
+        sns.histplot(dataset[selectedVariable], bins=30, kde=True, 
+                    color='blue', alpha=0.6, stat='density', label='Cleaned')
+        plt.legend()
+    
+    render_plot(plot_overlaid, title=f"{dataset_name} vs Raw - {selectedVariable}")
+    
+else:
+    def plot_single():
+        # Single distribution with stats
+        sns.histplot(dataset[selectedVariable], bins=30, kde=True, 
+                    color='teal', alpha=0.6, stat='density')
+        plt.legend()
+    
+    render_plot(plot_single, title=f"{dataset_name} - {selectedVariable}")
 
 
 st.header("5. ML Models Training and Prediction Evaluation") #4 algorithms, evaluation also includes CV and feature importance
