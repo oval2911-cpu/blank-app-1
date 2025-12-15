@@ -197,7 +197,6 @@ def render_plot(obj, title="", *args, **kwargs):
 st.write("### Subset Variable Distributions")
 selectedVariable = st.selectbox("Select variable to plot:", dhs.select_dtypes(include='number').columns)
 render_plot(dhs[selectedVariable].hist, bins=30, alpha=0.4, edgecolor='black', label=selectedVariable)
-
 st.write("""
 - *More females*
 - *Age has some dips*
@@ -205,40 +204,51 @@ st.write("""
 - *DIABP, CURSMOKE: approximately symmetric*
 - *DIABETES, ANYCHD, STROKE: no event/comorbidity is more represented*
 """)
-render_plot(dhs.hist(figsize=(15, 10), bins=30, edgecolor='black'))
 
-
-"""One Hot Encoding for SEX variable"""
-# Create the new binary column
-dhs['SEX_Female'] = dhs['SEX'].replace({
-    1: 0, # Map original value 1 (Male) to 0
-    2: 1  # Map original value 2 (Female) to 1
-})
-
-
-#feature engineering
-
-# 3. Calculate the Incident Target Variable.
-# For this 'at-risk' group, ANYCHD=1 or STROKE=1 in the Period 1 record indicates an
-# INCIDENT event after Period 1, because the 1 is filled in each period
-dhs['targetDisease'] = (
+st.write("### Create 1 Target Variable")
+st.write("""
+- *Before data cleaning, the data should be split into train and test to avoid data leakage.
+Thus, the target variable is required for which we currently have 2 variables (ANYCHD, STROKE).
+In the Framingham dataset, ANYCHD=1 and STROKE=1 in the Period 1 record indicate that the
+event happened at any time during the follow-up after Period 1.
+Therefore, we can create one target variable for binary classification that would allow us to do train/test split.*
+""")
+dhs['Disease'] = (
     (dhs['ANYCHD'] == 1) | (dhs['STROKE'] == 1)
 ).astype(int)
+st.write('Values of the new **target variable**:')
+st.write(dhs.Disease.value_counts())
+# Drop the original target columns
+dhs = dhs.drop('ANYCHD', axis=1)
+dhs = dhs.drop('STROKE', axis=1)
+
+
 
 """--> Missing values have to be handled"""
 """--> No duplicates to handle
-"""
+Outliers
+transformations for skewed data
+encoding 
+put target in 1
 
-# Drop the original sex column, original target columns, and other columns that are not needed
-dhs = dhs.drop('SEX', axis=1)
-dhs = dhs.drop('ANYCHD', axis=1)
-dhs = dhs.drop('STROKE', axis=1)
-dhs = dhs.drop('DEATH', axis=1)
+"""
+#feature engineering
+st.write("### One Hot Encoding for SEX variable")
+# create a new binary column
+dhs['SEX_Female'] = dhs['SEX'].replace({
+    1: 0, # map original value 1 (Male) to 0
+    2: 1  # map original value 2 (Female) to 1
+})
+st.write(f'Values of new **SEX_Female variable** after encoding: :blue-background[{set(dhs.SEX_Female)}]')
+dhs = dhs.drop('SEX', axis=1) #drop original SEX variable
+
+
+
 
 """##Outlier detection and handling, Impute only Period 1, and only training set to prevent data leakage"""
 
-X = dhs.drop('targetDisease', axis=1) 
-y = dhs['targetDisease']
+X = dhs.drop('Disease', axis=1) 
+y = dhs['Disease']
 
 X_train, X_test, y_train, y_test = train_test_split(
     X, y, 
@@ -426,6 +436,7 @@ X_train[numerical] = scaler.transform(X_train[numerical])
 # 4. TRANSFORM the X_test data (using the X_train fitted scaler)
 # X_test is updated in place
 X_test[numerical] = scaler.transform(X_test[numerical])
+
 
 
 st.header("4. Visualization of the Final Clean Data") #visualization of our cleaned subset
@@ -697,7 +708,8 @@ model_evaluation(model_name, model_KNN, prediction_KNN)
 st.write('## Conclusion')
 
 """Limitations: 
-- Patients were followed-up in incomparable timespans (e.g. 1 patient 2 years, another 6 years) --> can bias predictions"""
+- Patients were followed-up in incomparable timespans (e.g. 1 patient 2 years, another 6 years) --> can bias predictions
+- Maybe should have also feature engineered blood pressure"""
 """Answer on RQ based on ML, feature importance"""
 
 
