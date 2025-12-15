@@ -22,6 +22,7 @@ from sklearn import tree
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.linear_model import LogisticRegression
+sns.set_palette("Set2") #set consistent color palette for all plots
 
 
 # title and subtitle for the app
@@ -59,94 +60,98 @@ st.markdown("[8. References](#references)")
 
 
 # section 1
-st.header("1. Background and Research Question") #background on the dataset and our RQ
+with st.expander("1. Background and Research Question"):
 
-st.write("### Framingham Heart Study Dataset:")
-st.write("""- ***Extensive follow-up study** dataset on **cardiovascular health** ongoing **since 1948***
-- *Up to **3 follow-up periods** (fewer for some patients): **Period 1 = baseline***
-- ***11,627 examination records** (rows) from **4,434 patients***
-- ***39 variables:***
-    - *Demographics (sex, age)*
-    - *Clinical health data (blood pressure, diabetes)*
-    - *Lifestyle (smoking, BMI)*
-    - *Occurrence of cardiovascular diseases (stroke, coronary heart disease (CHD))*""")
+    st.header("1. Background and Research Question") #background on the dataset and our RQ
 
-st.write("### Research Question:")
-st.write("***To what extent** can **baseline patient characteristics from the Framingham dataset** be used by machine-learning models to **reliably predict the occurrence of major cardiovascular events** (stroke, CHD, myocardial infarction (MI), and coronary insufficiency)?*")
+    st.write("### Framingham Heart Study Dataset:")
+    st.write("""- ***Extensive follow-up study** dataset on **cardiovascular health** ongoing **since 1948***
+    - *Up to **3 follow-up periods** (fewer for some patients): **Period 1 = baseline***
+    - ***11,627 examination records** (rows) from **4,434 patients***
+    - ***39 variables:***
+        - *Demographics (sex, age)*
+        - *Clinical health data (blood pressure, diabetes)*
+        - *Lifestyle (smoking, BMI)*
+        - *Occurrence of cardiovascular diseases (stroke, coronary heart disease (CHD))*""")
 
-st.write("### Previous Research Findings:")
-st.write("*Previously reported research shows BMI, cholesterol and blood pressure can have an influence on CVD risk (Bays et al., 2021): → Which modifiable factors are correlated with CVD the strongest, and are thus worth minimizing?*")
+    st.write("### Research Question:")
+    st.write("***To what extent** can **baseline patient characteristics from the Framingham dataset** be used by machine-learning models to **reliably predict the occurrence of major cardiovascular events** (stroke, CHD, myocardial infarction (MI), and coronary insufficiency)?*")
+
+    st.write("### Previous Research Findings:")
+    st.write("*Previously reported research shows BMI, cholesterol and blood pressure can have an influence on CVD risk (Bays et al., 2021): → Which modifiable factors are correlated with CVD the strongest, and are thus worth minimizing?*")
 
 
 # section 2
-st.header("2. Data Preparation")  #exploration of raw dataset and subsetting
+with st.expander("2. Data Preparation"):
+    st.header("2. Data Preparation")  #exploration of raw dataset and subsetting
 
-st.write('### Raw Dataset Preview:')
-# load dataset
-data_heart = pd.read_csv('https://raw.githubusercontent.com/LUCE-Blockchain/Databases-for-teaching/refs/heads/main/Framingham%20Dataset.csv')
-data_heart
-st.write(f'**Shape** (n of rows and columns) of the raw dataset: :blue-background[{data_heart.shape}]')
-st.write("""
-- *Each **row represents one exam**, so there are **more rows than number of patients** (RANDIDs repeat)*
-- *Some cells contain 'None', therefore, **some missing values can already be expected and will have to be handled***
-""")
+    st.write('### Raw Dataset Preview:')
+    # load dataset
+    data_heart = pd.read_csv('https://raw.githubusercontent.com/LUCE-Blockchain/Databases-for-teaching/refs/heads/main/Framingham%20Dataset.csv')
+    data_heart
+    st.write(f'**Shape** (n of rows and columns) of the raw dataset: :blue-background[{data_heart.shape}]')
+    st.write("""
+    - *Each **row represents one exam**, so there are **more rows than number of patients** (RANDIDs repeat)*
+    - *Some cells contain 'None', therefore, **some missing values can already be expected and will have to be handled***
+    """)
 
-st.write('### Raw Dataset Descriptive Statistics:')
-st.write(data_heart.describe())
-st.write("""
-- ***RANDID variable is not interesting**, therefore, it **will be removed** in the following steps*
-- *Interestingly, **sex was encoded with 1 and 2** so we should **be careful** and encode it to 0 and 1 before applying ML, to preven learning hierachy*
-""")
-# not visualized in the app, but the raw dataset was also checked for missing values and duplicates
-print(data_heart.isna().sum()) #in the terminal output it can be seen that there are some missing values that have to be checked for and handled
-print(data_heart.duplicated().sum()) #in the terminal output it can be seen that there are no duplicates
+    st.write('### Raw Dataset Descriptive Statistics:')
+    st.write(data_heart.describe())
+    st.write("""
+    - ***RANDID variable is not interesting**, therefore, it **will be removed** in the following steps*
+    - *Interestingly, **sex was encoded with 1 and 2** so we should **be careful** and encode it to 0 and 1 before applying ML, to preven learning hierachy*
+    """)
+    # not visualized in the app, but the raw dataset was also checked for missing values and duplicates
+    print(data_heart.isna().sum()) #in the terminal output it can be seen that there are some missing values that have to be checked for and handled
+    print(data_heart.duplicated().sum()) #in the terminal output it can be seen that there are no duplicates
 
-st.write('### Raw Dataset Variables:')
-st.write(data_heart.columns)
-st.write(f'Number of all variables: :blue-background[{len(data_heart.columns)}]')
-st.write("""
-- *To answer the RQ, the **subset will be created** in 2 steps:*
-    1. ***Filtering:***
-        - *Keep **only Period 1 records** for each participant to define baseline 'at-risk' population*
-        - ***Filter out participants with prevalent disease** (PREVCHD=1, PREVSTRK=1) at Period 1 to ensure we are keeping only the population 'at risk' for a first event*
-        - ***Filter out the patients that never developed a disease and died during the follow-up** as if they died we cannot assume that they would have not developed a disease later*
-    2. ***Including** only 14 **variables of interest:***
-        - *Demographics: **SEX, AGE, educ***
-        - *Clinical health data: **TOTCHOL, SYSBP, DIABP, DIABETES, HEARTRTE, GLUCOSE***
-        - *Lifestyle: **CURSMOKE, CIGPDAY, BMI***
-        - *Occurrence of cardiovascular diseases: **ANYCHD, STROKE***
-    - *The following 25 variables will therefore be **excluded:***
-        - ***RANDID, PERIOD, PREVCHD, PREVSTRK, TIME, DEATH**: do not contain any valuable information as the data were already filtered*
-        - ***ANGINA, PREVAP, TIMEAP**: not looking into that disease*
-        - ***HOSPMI, MI_FCHD, CVD, PREVMI, TIMECVD, TIMEMIFC, TIMEMI**: included in other variables that will be left in the subset (ANYCHD, STROKE, PREVCHD, PREVSTRK, TIMECHD, TIMESTRK)*
-        - ***HDLC, LDLC**: only available in Period 3 while we want to look into the baseline (Period 1)*
-        - ***PREVHYP, HYPERTEN, TIMECHD, TIMESTRK, TIMEDTH, TIMEHYP, BPMEDS**: contain information that would create data leakage when using ML*
-""")
+    st.write('### Raw Dataset Variables:')
+    st.write(data_heart.columns)
+    st.write(f'Number of all variables: :blue-background[{len(data_heart.columns)}]')
+    st.write("""
+    - *To answer the RQ, the **subset will be created** in 2 steps:*
+        1. ***Filtering:***
+            - *Keep **only Period 1 records** for each participant to define baseline 'at-risk' population*
+            - ***Filter out participants with prevalent disease** (PREVCHD=1, PREVSTRK=1) at Period 1 to ensure we are keeping only the population 'at risk' for a first event*
+            - ***Filter out the patients that never developed a disease and died during the follow-up** as if they died we cannot assume that they would have not developed a disease later*
+        2. ***Including** only 14 **variables of interest:***
+            - *Demographics: **SEX, AGE, educ***
+            - *Clinical health data: **TOTCHOL, SYSBP, DIABP, DIABETES, HEARTRTE, GLUCOSE***
+            - *Lifestyle: **CURSMOKE, CIGPDAY, BMI***
+            - *Occurrence of cardiovascular diseases: **ANYCHD, STROKE***
+        - *The following 25 variables will therefore be **excluded:***
+            - ***RANDID, PERIOD, PREVCHD, PREVSTRK, TIME, DEATH**: do not contain any valuable information as the data were already filtered*
+            - ***ANGINA, PREVAP, TIMEAP**: not looking into that disease*
+            - ***HOSPMI, MI_FCHD, CVD, PREVMI, TIMECVD, TIMEMIFC, TIMEMI**: included in other variables that will be left in the subset (ANYCHD, STROKE, PREVCHD, PREVSTRK, TIMECHD, TIMESTRK)*
+            - ***HDLC, LDLC**: only available in Period 3 while we want to look into the baseline (Period 1)*
+            - ***PREVHYP, HYPERTEN, TIMECHD, TIMESTRK, TIMEDTH, TIMEHYP, BPMEDS**: contain information that would create data leakage when using ML*
+    """)
 
-# copy raw dataset to a new subset variable with a short name to make changes in a new variable and make it easier to call it
-dhs = data_heart.copy()
-# step 1: filtering
-dhs = dhs.loc[dhs['PERIOD'] == 1].copy() #keep only period 1
-dhs = dhs.loc[
-    (dhs['PREVCHD'] == 0) & (dhs['PREVSTRK'] == 0)
-    ].copy() #filter out participants with prevalent disease
-dhs = dhs.loc[~((dhs['ANYCHD'] == 0) & (dhs['DEATH'] == 1))] #filter out deceased participants with no disease
-dhs = dhs.loc[~((dhs['STROKE'] == 0) & (dhs['DEATH'] == 1))] 
-# step 2: keeping variables of interest
-dhs = dhs[['SEX', 'AGE', 'educ', 'TOTCHOL', 'SYSBP', 'DIABP', 'DIABETES',
-'HEARTRTE', 'GLUCOSE', 'CURSMOKE', 'CIGPDAY', 'BMI', 'ANYCHD', 'STROKE']]
+    # copy raw dataset to a new subset variable with a short name to make changes in a new variable and make it easier to call it
+    dhs = data_heart.copy()
+    # step 1: filtering
+    dhs = dhs.loc[dhs['PERIOD'] == 1].copy() #keep only period 1
+    dhs = dhs.loc[
+        (dhs['PREVCHD'] == 0) & (dhs['PREVSTRK'] == 0)
+        ].copy() #filter out participants with prevalent disease
+    dhs = dhs.loc[~((dhs['ANYCHD'] == 0) & (dhs['DEATH'] == 1))] #filter out deceased participants with no disease
+    dhs = dhs.loc[~((dhs['STROKE'] == 0) & (dhs['DEATH'] == 1))] 
+    # step 2: keeping variables of interest
+    dhs = dhs[['SEX', 'AGE', 'educ', 'TOTCHOL', 'SYSBP', 'DIABP', 'DIABETES',
+    'HEARTRTE', 'GLUCOSE', 'CURSMOKE', 'CIGPDAY', 'BMI', 'ANYCHD', 'STROKE']]
 
 
-st.write("### Created Subset Preview:")
-dhs
-st.write(f'**Shape** (n of rows and columns) of the subset: :blue-background[{dhs.shape}]')
+    st.write("### Created Subset Preview:")
+    dhs
+    st.write(f'**Shape** (n of rows and columns) of the subset: :blue-background[{dhs.shape}]')
 
-st.write("### Created Subset Variables:")
-"""Overview of all columns of the created subset:"""
-st.write(dhs.columns)
+    st.write("### Created Subset Variables:")
+    """Overview of all columns of the created subset:"""
+    st.write(dhs.columns)
 
-# not visualized in the app, but the subset descriptive statistics were also checked
-print(dhs.describe()) #it can be seen in the terminal output
+    # not visualized in the app, but the subset descriptive statistics were also checked
+    print(dhs.describe()) #it can be seen in the terminal output
+
 
 st.header("3. Exploratory Data Analysis (EDA), Cleaning, and Feature Engineering") #exploration of our subset and cleaning
 
@@ -184,8 +189,8 @@ def render_plot(obj, title="", *args, **kwargs):
     fig.tight_layout(pad=2.0)
     fig.subplots_adjust(top=0.9)
     fig.suptitle(title, fontsize=30)
-    plt.yticks(fontsize=20)
-    plt.xticks(fontsize=20)
+    plt.yticks(fontsize=15)
+    plt.xticks(fontsize=15)
     for ax in fig.axes:
         ax.tick_params(axis='x', rotation=90)
     
@@ -306,7 +311,7 @@ st.write("""GLUCOSE will be model based imputed because of its high missingness.
 """)
 
 #add correlations between variables
-render_plot(sns.heatmap(X_train.corr(), annot=True, cmap='coolwarm', fmt='.2f'))
+render_plot(sns.heatmap(X_train.corr(), annot=True, cmap='coolwarm', fmt='.2f', annot_kws={"size": 8}))
 
 st.write("""
 Missingno heatmap relates missingness of variables to each other.""")
@@ -326,7 +331,7 @@ st.write("""
 #""")
 
 st.write("""
-- For all other, as the missingness is less than 5% in each variable, we will do simple imputation*
+- *For all other, as the missingness is less than 5% in each variable, we will do simple imputation*
 - *educ is categorical, therefore, will use mode for imputation*
 - *For CIGPDAY and BMI will use median imputation to be more robust against outliers*
 """)
@@ -457,7 +462,7 @@ scaler.fit(X_train[numerical]) #fit only on train data (leakage prevention), cal
 X_train[numerical] = scaler.transform(X_train[numerical]) #transform train data
 X_test[numerical] = scaler.transform(X_test[numerical]) #transform test data
 
-#Do the same on the raw data copies for later visualization comparison
+# do the same on the raw data copies for later visualization comparison
 scaler.fit(rawX_train[numerical]) #fit only on train data (leakage prevention), calculating mean and standard deviation of X_train
 rawX_train[numerical] = scaler.transform(rawX_train[numerical]) #transform train data
 rawX_test[numerical] = scaler.transform(rawX_test[numerical]) #transform test data
@@ -476,17 +481,17 @@ else:
     dataset_name = "X_train"
     raw_dataset = rawX_train
 
-overlap_raw = st.toggle("Overlap RAW")
+overlap_raw = st.toggle("Overlap RAW (scaled)")
 selectedVariable = st.selectbox("Select variable to plot:", dataset.columns)
 
 if overlap_raw:
     def plot_overlaid():
         # Raw (red) with KDE
         sns.histplot(raw_dataset[selectedVariable], bins=30, kde=True, 
-                    color='red', alpha=0.6, stat='density', label='Raw')
+                    color='red', alpha=0.3, stat='density', label='Raw')
         # Cleaned (blue) with KDE  
         sns.histplot(dataset[selectedVariable], bins=30, kde=True, 
-                    color='blue', alpha=0.6, stat='density', label='Cleaned')
+                    color='blue', alpha=0.3, stat='density', label='Cleaned')
         plt.legend()
     
     render_plot(plot_overlaid, title=f"{dataset_name} vs Raw - {selectedVariable}")
@@ -495,7 +500,7 @@ else:
     def plot_single():
         # Single distribution with stats
         sns.histplot(dataset[selectedVariable], bins=30, kde=True, 
-                    color='teal', alpha=0.6, stat='density')
+                    color='teal', alpha=0.3, stat='density')
         plt.legend()
     
     render_plot(plot_single, title=f"{dataset_name} - {selectedVariable}")
